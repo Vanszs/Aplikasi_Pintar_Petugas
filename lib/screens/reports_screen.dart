@@ -25,12 +25,12 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(reportProvider.notifier).loadUserReports();
+      ref.read(reportProvider.notifier).loadAllReports();
     });
   }
 
   Future<void> _refreshReports() async {
-    await ref.read(reportProvider.notifier).loadUserReports();
+    await ref.read(reportProvider.notifier).loadAllReports();
     // Reset to first page on refresh
     if (mounted) {
       setState(() {

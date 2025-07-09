@@ -23,7 +23,8 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
   @override
   void initState() {
     super.initState();
-    _loadReportDetail();
+    // Use Future.microtask to avoid modifying provider during widget build
+    Future.microtask(() => _loadReportDetail());
   }
 
   Future<void> _loadReportDetail() async {
@@ -67,18 +68,18 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error loading report: $e'),
+            content: Text('Error memuat detail: ${e.toString()}'),
             backgroundColor: Colors.red,
           ),
         );
       }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-        debugPrint('Set _isLoading = false');
-      }
+    }
+    
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+      });
+      debugPrint('Set _isLoading = false');
     }
   }
 
