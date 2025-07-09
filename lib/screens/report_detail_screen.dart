@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'dart:async';
 import '../models/report.dart';
 import '../providers/report_provider.dart';
@@ -404,22 +405,67 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
             [
               _buildInfoRow('Nama', report.userName ?? 'Tidak diketahui'),
               _buildInfoRow('ID Pelapor', '#${report.userId}'),
-              if (report.phone != null) _buildInfoRow('Telepon', report.phone!),
+              _buildInfoRow('Telepon', (report.phone != null && report.phone != '-') ? report.phone! : 'Tidak tersedia'),
             ],
           ).animate().fadeIn(delay: const Duration(milliseconds: 200)).slideY(begin: 0.2),
           
           const SizedBox(height: 20),
           
-          // Action button - hanya hubungi pelapor
+          // Action button - hubungi pelapor via WhatsApp
           Container(
             width: double.infinity,
             child: ElevatedButton.icon(
               onPressed: () {
-                // Implementasi hubungi pelapor
-                if (report.phone != null) {
+                // Implementasi hubungi pelapor via WhatsApp
+                if (report.phone != null && report.phone != '-') {
+                  // Format nomor untuk WhatsApp: pastikan diawali dengan 628
+                  String phoneNumber = report.phone!.trim();
+                  
+                  // Hapus awalan +62 jika ada
+                  if (phoneNumber.startsWith('+62')) {
+                    phoneNumber = '62${phoneNumber.substring(3)}';
+                  } 
+                  // Hapus awalan 0 dan ganti dengan 62
+                  else if (phoneNumber.startsWith('0')) {
+                    phoneNumber = '62${phoneNumber.substring(1)}';
+                  }
+                  // Jika tidak diawali 62, tambahkan
+                  else if (!phoneNumber.startsWith('62')) {
+                    phoneNumber = '62$phoneNumber';
+                  }
+                  
+                  // Buka WhatsApp
+                  final whatsappUrl = 'https://wa.me/$phoneNumber';
+                  debugPrint('Opening WhatsApp with URL: $whatsappUrl');
+                  
+                  // Buka browser dengan URL WhatsApp
+                  Uri uri = Uri.parse(whatsappUrl);
+                  
+                  // Gunakan try-catch untuk menangani jika tidak bisa membuka WhatsApp
+                  try {
+                    launchUrl(uri, mode: LaunchMode.externalApplication).then((success) {
+                      if (!success) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Tidak dapat membuka WhatsApp, pastikan aplikasi sudah terpasang'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                      }
+                    });
+                  } catch (e) {
+                    debugPrint('Error opening WhatsApp: $e');
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Terjadi kesalahan saat membuka WhatsApp'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                  
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text('Menghubungi ${report.phone}'),
+                      content: Text('Membuka WhatsApp untuk nomor ${report.phone}'),
                       backgroundColor: Colors.green,
                     ),
                   );
@@ -432,10 +478,10 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
                   );
                 }
               },
-              icon: const Icon(Icons.phone),
-              label: const Text('Hubungi Pelapor'),
+              icon: const Icon(Icons.chat),
+              label: const Text('Hubungi via WhatsApp'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF6366F1),
+                backgroundColor: const Color(0xFF25D366), // Warna WhatsApp
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(
