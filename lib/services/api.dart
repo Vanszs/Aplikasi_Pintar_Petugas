@@ -731,6 +731,7 @@ class ApiService {
           userName: reportJson['reporter_name'] ?? reportJson['name'] ?? 'Tidak diketahui',
           phone: reportJson['phone'],
           jenisLaporan: reportJson['jenis_laporan'],
+          detailLaporan: reportJson['detail_laporan'],
         );
         
         developer.log('Report detail fetched successfully for ID: $reportId', name: 'ApiService');

@@ -301,6 +301,8 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
               _buildInfoRow('ID Laporan', '#${report.id}'),
               _buildInfoRow('Tanggal', report.formattedDate()),
               _buildInfoRow('Alamat', report.address),
+              if (report.detailLaporan != null && report.detailLaporan!.isNotEmpty)
+                _buildInfoRow('Deskripsi Kejadian', report.detailLaporan!),
             ],
           ).animate().fadeIn(delay: const Duration(milliseconds: 100)).slideY(begin: 0.2),
           

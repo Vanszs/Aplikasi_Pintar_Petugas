@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../providers/report_provider.dart';
+import '../providers/auth_provider.dart';
 import '../widgets/gradient_background.dart';
 
 class OfficerReportFormScreen extends ConsumerStatefulWidget {
@@ -21,7 +22,6 @@ class _OfficerReportFormScreenState extends ConsumerState<OfficerReportFormScree
   final _phoneController = TextEditingController();
   final _detailController = TextEditingController();
   final _customJenisLaporanController = TextEditingController();
-  final _reporterNameController = TextEditingController();
   
   String _selectedJenisLaporan = 'kemalingan';
   String _selectedRW = '01';
@@ -38,7 +38,6 @@ class _OfficerReportFormScreenState extends ConsumerState<OfficerReportFormScree
     _phoneController.dispose();
     _detailController.dispose();
     _customJenisLaporanController.dispose();
-    _reporterNameController.dispose();
     super.dispose();
   }
 
@@ -69,11 +68,13 @@ class _OfficerReportFormScreenState extends ConsumerState<OfficerReportFormScree
       }
       
       // Show debug logs to check values before sending
-      debugPrint('Sending report with name: ${_reporterNameController.text}');
+      final user = ref.read(authProvider).user;
+      final userName = user?.name ?? 'Petugas';
+      debugPrint('Sending report with name: $userName');
       debugPrint('Sending report with detail: ${_detailController.text}');
       
       final success = await ref.read(reportProvider.notifier).sendPetugasReport(
-        name: _reporterNameController.text,
+        name: userName,
         address: _addressController.text,
         phone: phoneNumber,
         jenisLaporan: jenisLaporan,
@@ -190,9 +191,7 @@ class _OfficerReportFormScreenState extends ConsumerState<OfficerReportFormScree
                     children: [
                       _buildHeader().animate().fadeIn(duration: 400.ms).slideY(begin: 0.1, end: 0),
                       const SizedBox(height: 24),
-                      _buildReporterNameSection().animate(delay: 100.ms).fadeIn(duration: 400.ms).slideY(begin: 0.1, end: 0),
-                      const SizedBox(height: 20),
-                      _buildJenisLaporanSection().animate(delay: 200.ms).fadeIn(duration: 400.ms).slideY(begin: 0.1, end: 0),
+                      _buildJenisLaporanSection().animate(delay: 100.ms).fadeIn(duration: 400.ms).slideY(begin: 0.1, end: 0),
                       const SizedBox(height: 20),
                       _buildAddressSection().animate(delay: 300.ms).fadeIn(duration: 400.ms).slideY(begin: 0.1, end: 0),
                       const SizedBox(height: 20),
@@ -201,8 +200,6 @@ class _OfficerReportFormScreenState extends ConsumerState<OfficerReportFormScree
                       _buildDetailSection().animate(delay: 500.ms).fadeIn(duration: 400.ms).slideY(begin: 0.1, end: 0),
                       const SizedBox(height: 20),
                       _buildRWSelector().animate(delay: 600.ms).fadeIn(duration: 400.ms).slideY(begin: 0.1, end: 0),
-                      const SizedBox(height: 20),
-                      _buildNameSection().animate(delay: 700.ms).fadeIn(duration: 400.ms).slideY(begin: 0.1, end: 0),
                       const SizedBox(height: 32),
                       if (_errorMessage != null) _buildErrorMessage().animate().fadeIn(duration: 300.ms),
                       _buildSubmitButton().animate(delay: 800.ms).fadeIn(duration: 500.ms).slideY(begin: 0.2, end: 0),
@@ -536,6 +533,8 @@ class _OfficerReportFormScreenState extends ConsumerState<OfficerReportFormScree
                   child: DropdownButton<String>(
                     value: _selectedRW,
                     isExpanded: true,
+                    menuMaxHeight: 300, // Make menu scrollable with fixed height
+                    isDense: true, // More compact dropdown
                     icon: const Icon(Icons.keyboard_arrow_down, color: Color(0xFF6366F1)),
                     items: _rwOptions
                         .map((rw) => DropdownMenuItem(
@@ -548,7 +547,8 @@ class _OfficerReportFormScreenState extends ConsumerState<OfficerReportFormScree
                                 ),
                               ),
                             ))
-                        .toList(),                                  onChanged: (value) {
+                        .toList(),
+                    onChanged: (value) {
                       if (value == null) return;
                       
                       setState(() {
@@ -563,90 +563,6 @@ class _OfficerReportFormScreenState extends ConsumerState<OfficerReportFormScree
               ),
             ],
           ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildNameSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Nama Pelapor',
-          style: GoogleFonts.inter(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            color: const Color(0xFF334155),
-          ),
-        ),
-        const SizedBox(height: 8),
-        TextFormField(
-          controller: _reporterNameController,
-          decoration: InputDecoration(
-            labelText: 'Nama Lengkap',
-            hintText: 'Masukkan nama pelapor',
-            filled: true,
-            fillColor: Colors.white,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color(0xFF6366F1), width: 2),
-            ),
-            prefixIcon: const Icon(Icons.person_outline, color: Color(0xFF6366F1)),
-          ),
-          textCapitalization: TextCapitalization.words,
-          validator: (value) {
-            if (value == null || value.isEmpty) {
-              return 'Nama pelapor harus diisi';
-            }
-            return null;
-          },
-        ),
-      ],
-    );
-  }
-
-  Widget _buildReporterNameSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Nama Pelapor',
-          style: GoogleFonts.inter(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            color: const Color(0xFF334155),
-          ),
-        ),
-        const SizedBox(height: 8),
-        TextFormField(
-          controller: _reporterNameController,
-          decoration: InputDecoration(
-            labelText: 'Nama Pelapor',
-            hintText: 'Masukkan nama pelapor',
-            filled: true,
-            fillColor: Colors.white,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color(0xFF6366F1), width: 2),
-            ),
-            prefixIcon: const Icon(Icons.person_outlined, color: Color(0xFF6366F1)),
-          ),
-          validator: (value) {
-            if (value == null || value.isEmpty) {
-              return 'Nama pelapor harus diisi';
-            }
-            return null;
-          },
-          textCapitalization: TextCapitalization.words,
         ),
       ],
     );
