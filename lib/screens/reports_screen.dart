@@ -493,28 +493,25 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                     ],
                   ),
                   
-                  // Show detail laporan if available
-                  if (report.detailLaporan != null && report.detailLaporan!.isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Icon(Icons.description_outlined, color: Color(0xFF6B7280), size: 16),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            report.detailLaporan!,
-                            style: GoogleFonts.inter(
-                              fontSize: 13,
-                              color: const Color(0xFF4B5563),
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
+                  // Always show that report details are available
+                  const SizedBox(height: 8),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(Icons.visibility_outlined, color: Color(0xFF6366F1), size: 16),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Laporan tersedia - Klik untuk melihat detail',
+                          style: GoogleFonts.inter(
+                            fontSize: 13,
+                            color: const Color(0xFF6366F1),
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
-                      ],
-                    ),
-                  ],
+                      ),
+                    ],
+                  ),
                   
                   const SizedBox(height: 8),
                   Row(

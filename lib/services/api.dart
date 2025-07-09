@@ -154,7 +154,6 @@ class ApiService {
       ).timeout(const Duration(seconds: 5));
       
       // Clear token regardless of response
-      final previousToken = token;
       token = null;
       currentUsername = null;
       
@@ -248,7 +247,6 @@ class ApiService {
     required String address, 
     required String phone, 
     required String jenisLaporan,
-    String? detailLaporan,
     String? rwNumber
   }) async {
     try {
@@ -291,15 +289,9 @@ class ApiService {
       requestBody['address'] = address;
       requestBody['phone'] = phone;
       requestBody['is_officer_report'] = true; // Tandai bahwa ini laporan dari petugas
+      requestBody['use_account_data'] = false; // Explicitly use the provided data, not account data
       
       // Tambahkan field opsional jika tersedia
-      if (detailLaporan != null && detailLaporan.isNotEmpty) {
-        requestBody['detail_laporan'] = detailLaporan;
-        developer.log('Added detail_laporan to request: $detailLaporan', name: 'ApiService');
-      } else {
-        developer.log('No detail_laporan provided or empty', name: 'ApiService');
-      }
-      
       if (rwNumber != null && rwNumber.isNotEmpty) {
         requestBody['rw'] = rwNumber;
       }
@@ -319,11 +311,11 @@ class ApiService {
       developer.log('Sending petugas report with body: $body', name: 'ApiService');
       
       // Log the exact request body being sent
-      developer.log('Sending request to: $baseUrl/officer-report', name: 'ApiService');
+      developer.log('Sending request to: $baseUrl/report', name: 'ApiService');
       developer.log('Request headers: Authorization: Bearer $token', name: 'ApiService');
       
       final response = await http.post(
-        Uri.parse('$baseUrl/officer-report'), // Endpoint khusus untuk laporan petugas
+        Uri.parse('$baseUrl/report'), // Use the standard report endpoint for all reports
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
@@ -615,7 +607,9 @@ class ApiService {
         developer.log('Reports JSON: ${reportsJson.length} reports found', name: 'ApiService');
         // Log sample report data for debugging
         if (reportsJson.isNotEmpty) {
-          developer.log('Sample report: ${reportsJson[0]}', name: 'ApiService');
+          final sampleReport = reportsJson[0];
+          developer.log('Sample report: $sampleReport', name: 'ApiService');
+          developer.log('Sample report keys: ${sampleReport.keys.toList()}', name: 'ApiService');
         }
         
         final List<Report> reports = reportsJson.map((json) => Report(
@@ -624,11 +618,10 @@ class ApiService {
             ? (json['user_id'] is int ? json['user_id'] : int.parse(json['user_id'].toString())) 
             : 0,
           address: json['address'] ?? 'Alamat tidak tersedia',
-          createdAt: DateTime.parse(json['created_at']),
+          createdAt: DateTime.parse(json['created_at']).toUtc().add(const Duration(hours: 7)),
           userName: json['reporter_name'] ?? json['name'] ?? 'Tidak diketahui',
           phone: json['phone'],
           jenisLaporan: json['jenis_laporan'],
-          detailLaporan: json['detail_laporan'],
         )).toList();
         
         developer.log('All reports fetched successfully: ${reports.length} reports', name: 'ApiService');
@@ -694,7 +687,7 @@ class ApiService {
     }
   }
   
-  // Method untuk mendapatkan detail laporan berdasarkan ID
+  // Method untuk mendapatkan detail laporan berdasarkan ID dari endpoint /reports/:id
   Future<Map<String, dynamic>> getReportDetail(int reportId) async {
     try {
       developer.log('Fetching report detail for ID: $reportId', name: 'ApiService');
@@ -706,9 +699,9 @@ class ApiService {
         };
       }
       
-      // Asumsi endpoint untuk detail laporan adalah /report/:id
+      // Endpoint untuk detail laporan adalah /reports/:id
       final response = await http.get(
-        Uri.parse('$baseUrl/report/$reportId'),
+        Uri.parse('$baseUrl/reports/$reportId'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
@@ -716,38 +709,58 @@ class ApiService {
       ).timeout(const Duration(seconds: 10));
       
       developer.log('Report detail response status: ${response.statusCode}', name: 'ApiService');
+      developer.log('Report detail response body: ${response.body}', name: 'ApiService');
       
       if (response.statusCode == 200) {
-        final reportJson = jsonDecode(response.body);
-        developer.log('Report JSON: $reportJson', name: 'ApiService');
-        
-        final report = Report(
-          id: reportJson['id'] is int ? reportJson['id'] : int.parse(reportJson['id'].toString()),
-          userId: reportJson['user_id'] != null 
-            ? (reportJson['user_id'] is int ? reportJson['user_id'] : int.parse(reportJson['user_id'].toString())) 
-            : 0,
-          address: reportJson['address'] ?? 'Alamat tidak tersedia',
-          createdAt: DateTime.parse(reportJson['created_at']),
-          userName: reportJson['reporter_name'] ?? reportJson['name'] ?? 'Tidak diketahui',
-          phone: reportJson['phone'],
-          jenisLaporan: reportJson['jenis_laporan'],
-          detailLaporan: reportJson['detail_laporan'],
-        );
-        
-        developer.log('Report detail fetched successfully for ID: $reportId', name: 'ApiService');
-        
-        // Return report and user details if available
-        return {
-          'success': true,
-          'report': report,
-          'user_details': reportJson['user_details'] ?? {},
-        };
+        try {
+          final reportJson = jsonDecode(response.body);
+          developer.log('Report JSON: $reportJson', name: 'ApiService');
+          developer.log('Report JSON keys: ${reportJson.keys.toList()}', name: 'ApiService');
+          
+          // Debug detail_laporan specifically
+          if (reportJson.containsKey('detail_laporan')) {
+            developer.log('detail_laporan exists: ${reportJson['detail_laporan']}', name: 'ApiService');
+            developer.log('detail_laporan type: ${reportJson['detail_laporan'].runtimeType}', name: 'ApiService');
+            developer.log('detail_laporan is null: ${reportJson['detail_laporan'] == null}', name: 'ApiService');
+            developer.log('detail_laporan is empty: ${reportJson['detail_laporan'] == ""}', name: 'ApiService');
+          } else {
+            developer.log('detail_laporan key does NOT exist', name: 'ApiService');
+          }
+          
+          final report = Report(
+            id: reportJson['id'] is int ? reportJson['id'] : int.parse(reportJson['id'].toString()),
+            userId: reportJson['user_id'] != null 
+              ? (reportJson['user_id'] is int ? reportJson['user_id'] : int.parse(reportJson['user_id'].toString())) 
+              : 0,
+            address: reportJson['address'] ?? 'Alamat tidak tersedia',
+            createdAt: DateTime.parse(reportJson['created_at']).toUtc().add(const Duration(hours: 7)),
+            userName: reportJson['reporter_name'] ?? reportJson['name'] ?? 'Tidak diketahui',
+            phone: reportJson['phone'],
+            jenisLaporan: reportJson['jenis_laporan'],
+          );
+          
+          developer.log('Report detail fetched successfully for ID: $reportId', name: 'ApiService');
+          
+          // Return report and user details if available
+          return {
+            'success': true,
+            'report': report,
+            'user_details': reportJson['user_details'] ?? {},
+          };
+        } catch (parseError) {
+          developer.log('Error parsing report detail: $parseError', name: 'ApiService');
+          return {
+            'success': false,
+            'message': 'Error parsing report data: ${parseError.toString()}',
+          };
+        }
       } else {
         final errorMessage = response.body.isNotEmpty 
             ? jsonDecode(response.body)['error'] ?? 'Failed to fetch report detail'
             : 'Failed to fetch report detail';
             
-        developer.log('Failed to fetch report detail for ID: $reportId', name: 'ApiService');
+        developer.log('Failed to fetch report detail for ID: $reportId, status: ${response.statusCode}', name: 'ApiService');
+        developer.log('Error response: ${response.body}', name: 'ApiService');
         return {
           'success': false,
           'message': errorMessage,
@@ -758,6 +771,46 @@ class ApiService {
       return {
         'success': false,
         'message': 'Connection error: ${e.toString()}',
+      };
+    }
+  }
+
+  // Method untuk mendapatkan detail laporan berdasarkan ID yang beradaptasi dengan struktur server
+  Future<Map<String, dynamic>> getReportWithRetry(int reportId) async {
+    try {
+      // First, try the standard report detail endpoint
+      final result = await getReportDetail(reportId);
+      
+      if (result['success']) {
+        return result;
+      }
+      
+      // If standard endpoint fails, try the all reports endpoint and find by ID
+      developer.log('First attempt failed, trying alternate method', name: 'ApiService');
+      final allReports = await getAllReports();
+      
+      if (allReports['success'] && allReports['reports'] != null) {
+        final reports = allReports['reports'] as List<Report>;
+        final matchingReport = reports.where((r) => r.id == reportId).toList();
+        
+        if (matchingReport.isNotEmpty) {
+          developer.log('Found report in all reports: ${matchingReport.first.id}', name: 'ApiService');
+          return {
+            'success': true,
+            'report': matchingReport.first
+          };
+        }
+      }
+      
+      return {
+        'success': false,
+        'message': 'Report not found after multiple attempts'
+      };
+    } catch (e) {
+      developer.log('Error in getReportWithRetry: $e', name: 'ApiService');
+      return {
+        'success': false,
+        'message': 'Error: ${e.toString()}'
       };
     }
   }

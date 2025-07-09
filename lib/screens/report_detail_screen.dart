@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'dart:async';
 import '../models/report.dart';
 import '../providers/report_provider.dart';
 import '../widgets/gradient_background.dart';
@@ -27,7 +28,11 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
 
   Future<void> _loadReportDetail() async {
     final reportId = int.tryParse(widget.reportId);
+    debugPrint('=== ReportDetailScreen _loadReportDetail ===');
+    debugPrint('Parsed reportId: $reportId from widget.reportId: ${widget.reportId}');
+    
     if (reportId == null) {
+      debugPrint('ERROR: Invalid reportId');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -40,11 +45,40 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
       return;
     }
 
-    await ref.read(reportProvider.notifier).loadReportDetail(reportId);
-    if (mounted) {
-      setState(() {
-        _isLoading = false;
-      });
+    setState(() {
+      _isLoading = true;
+    });
+    debugPrint('Set _isLoading = true');
+
+    try {
+      debugPrint('Calling loadReportDetail with ID: $reportId');
+      
+      // Add timeout to prevent indefinite loading
+      await Future.any([
+        ref.read(reportProvider.notifier).loadReportDetail(reportId),
+        Future.delayed(const Duration(seconds: 15), () {
+          throw TimeoutException('Timeout loading report detail', const Duration(seconds: 15));
+        }),
+      ]);
+      
+      debugPrint('loadReportDetail completed');
+    } catch (e) {
+      debugPrint('ERROR in loadReportDetail: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error loading report: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+        debugPrint('Set _isLoading = false');
+      }
     }
   }
 
@@ -54,6 +88,19 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
     final report = reportState.selectedReport;
     final isLoading = _isLoading || reportState.isLoadingDetail;
     final errorMessage = reportState.errorMessage;
+    
+    // Debug logging
+    debugPrint('=== ReportDetailScreen build ===');
+    debugPrint('ReportDetailScreen build - isLoading: $isLoading');
+    debugPrint('ReportDetailScreen build - _isLoading: $_isLoading');
+    debugPrint('ReportDetailScreen build - reportState.isLoadingDetail: ${reportState.isLoadingDetail}');
+    debugPrint('ReportDetailScreen build - report: ${report?.id}');
+    debugPrint('ReportDetailScreen build - errorMessage: $errorMessage');
+    if (report != null) {
+      debugPrint('ReportDetailScreen build - jenisLaporan: "${report.jenisLaporan}"');
+      debugPrint('ReportDetailScreen build - userName: "${report.userName}"');
+      debugPrint('ReportDetailScreen build - address: "${report.address}"');
+    }
     
     final topPadding = MediaQuery.of(context).padding.top;
     final bottomPadding = MediaQuery.of(context).padding.bottom;
@@ -114,7 +161,37 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
             // Content
             Expanded(
               child: isLoading
-                  ? const Center(child: CircularProgressIndicator())
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const CircularProgressIndicator(
+                            color: Color(0xFF6366F1),
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Memuat detail laporan...',
+                            style: GoogleFonts.inter(
+                              fontSize: 14,
+                              color: const Color(0xFF6B7280),
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                          TextButton(
+                            onPressed: () {
+                              _loadReportDetail();
+                            },
+                            child: Text(
+                              'Coba Lagi',
+                              style: GoogleFonts.inter(
+                                color: const Color(0xFF6366F1),
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
                   : errorMessage != null
                       ? _buildErrorState(errorMessage)
                       : report != null
@@ -201,18 +278,32 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
           ),
           const SizedBox(height: 8),
           const Text(
-            'Data laporan tidak ditemukan atau telah dihapus.',
+            'Data laporan tidak ditemukan atau belum dimuat.',
             textAlign: TextAlign.center,
             style: TextStyle(color: Color(0xFF64748B)),
           ),
           const SizedBox(height: 24),
-          ElevatedButton(
-            onPressed: () => context.pop(),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF6366F1),
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Kembali'),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              ElevatedButton(
+                onPressed: () => _loadReportDetail(),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF6366F1),
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text('Muat Ulang'),
+              ),
+              const SizedBox(width: 12),
+              ElevatedButton(
+                onPressed: () => context.pop(),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.grey,
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text('Kembali'),
+              ),
+            ],
           ),
         ],
       ),
@@ -301,8 +392,6 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
               _buildInfoRow('ID Laporan', '#${report.id}'),
               _buildInfoRow('Tanggal', report.formattedDate()),
               _buildInfoRow('Alamat', report.address),
-              if (report.detailLaporan != null && report.detailLaporan!.isNotEmpty)
-                _buildInfoRow('Deskripsi Kejadian', report.detailLaporan!),
             ],
           ).animate().fadeIn(delay: const Duration(milliseconds: 100)).slideY(begin: 0.2),
           
@@ -320,68 +409,39 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
           
           const SizedBox(height: 20),
           
-          // Action buttons
-          Row(
-            children: [
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: () {
-                    // Implementasi hubungi pelapor
-                    if (report.phone != null) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Menghubungi ${report.phone}'),
-                          backgroundColor: Colors.green,
-                        ),
-                      );
-                    } else {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Nomor telepon tidak tersedia'),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                    }
-                  },
-                  icon: const Icon(Icons.phone),
-                  label: const Text('Hubungi Pelapor'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF6366F1),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
+          // Action button - hanya hubungi pelapor
+          Container(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () {
+                // Implementasi hubungi pelapor
+                if (report.phone != null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Menghubungi ${report.phone}'),
+                      backgroundColor: Colors.green,
                     ),
-                  ),
+                  );
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Nomor telepon tidak tersedia'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              },
+              icon: const Icon(Icons.phone),
+              label: const Text('Hubungi Pelapor'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF6366F1),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Laporan ditandai selesai'),
-                        backgroundColor: Colors.green,
-                      ),
-                    );
-                    Future.delayed(const Duration(milliseconds: 500), () {
-                      context.pop();
-                    });
-                  },
-                  icon: const Icon(Icons.check_circle_outline),
-                  label: const Text('Tandai Selesai'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                ),
-              ),
-            ],
+            ),
           ).animate().fadeIn(delay: const Duration(milliseconds: 300)),
         ],
       ),

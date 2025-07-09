@@ -8,7 +8,6 @@ class Report {
   final String? userName; // Optional field for displaying user's name
   final String? phone; // Added phone field
   final String? jenisLaporan; // Added jenis_laporan field
-  final String? detailLaporan; // Added detail_laporan field
 
   Report({
     required this.id,
@@ -18,7 +17,6 @@ class Report {
     this.userName,
     this.phone,
     this.jenisLaporan,
-    this.detailLaporan,
   });
 
   factory Report.fromJson(Map<String, dynamic> json) {
@@ -31,7 +29,6 @@ class Report {
       userName: json['reporter_name']?.toString() ?? json['name']?.toString(), // Backend menggunakan 'reporter_name' atau 'name'
       phone: json['phone']?.toString(), // Parse phone from API
       jenisLaporan: json['jenis_laporan']?.toString(), // Parse jenis_laporan from API
-      detailLaporan: json['detail_laporan']?.toString(), // Parse detail_laporan from API
     );
   }
 
@@ -44,7 +41,6 @@ class Report {
       'name': userName,
       'phone': phone,
       'jenis_laporan': jenisLaporan,
-      'detail_laporan': detailLaporan,
     };
   }
 

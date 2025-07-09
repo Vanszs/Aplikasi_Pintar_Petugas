@@ -46,9 +46,8 @@ class ReportState {
 class ReportNotifier extends StateNotifier<ReportState> {
   final dynamic _apiService;
   final dynamic _socketService;
-  final Ref? _ref;
 
-  ReportNotifier(this._apiService, this._socketService, [this._ref]) 
+  ReportNotifier(this._apiService, this._socketService) 
       : super(ReportState()) {
     _listenForReports();
     _loadInitialData();
@@ -133,31 +132,43 @@ class ReportNotifier extends StateNotifier<ReportState> {
   // Metode baru untuk mendapatkan detail laporan
   Future<void> loadReportDetail(int reportId) async {
     developer.log('Loading report detail for ID: $reportId', name: 'ReportProvider');
-    state = state.copyWith(isLoadingDetail: true);
+    
+    // Reset state first and set loading state
+    state = state.copyWith(
+      selectedReport: null,
+      errorMessage: null,
+      isLoadingDetail: true
+    );
     
     try {
       final result = await _apiService.getReportDetail(reportId);
       
+      developer.log('API result received: ${result['success']}', name: 'ReportProvider');
+      
       if (result['success']) {
+        final report = result['report'] as Report;
         state = state.copyWith(
-          selectedReport: result['report'] as Report,
+          selectedReport: report,
           isLoadingDetail: false,
           errorMessage: null,
         );
-        developer.log('Report detail loaded successfully', name: 'ReportProvider');
+        developer.log('Report detail loaded successfully: ID=${report.id}, Type=${report.jenisLaporan}', name: 'ReportProvider');
       } else {
+        final errorMsg = result['message'] ?? 'Failed to load report detail';
         state = state.copyWith(
           isLoadingDetail: false,
-          errorMessage: result['message'],
+          errorMessage: errorMsg,
         );
-        developer.log('Failed to load report detail: ${result['message']}', name: 'ReportProvider');
+        developer.log('Failed to load report detail: $errorMsg', name: 'ReportProvider');
       }
     } catch (e) {
+      final errorMsg = 'Error loading report detail: ${e.toString()}';
       state = state.copyWith(
         isLoadingDetail: false,
-        errorMessage: 'Error loading report detail: ${e.toString()}',
+        errorMessage: errorMsg,
       );
-      developer.log('Error loading report detail: $e', name: 'ReportProvider');
+      developer.log('Exception in loadReportDetail: $e', name: 'ReportProvider');
+      rethrow; // Re-throw to allow UI to handle the error
     }
   }
 
@@ -173,7 +184,6 @@ class ReportNotifier extends StateNotifier<ReportState> {
     required String address,
     required String phone,
     required String jenisLaporan,
-    String? detailLaporan,
     String? rwNumber
   }) async {
     developer.log('Petugas mengirim laporan', name: 'ReportProvider');
@@ -181,12 +191,18 @@ class ReportNotifier extends StateNotifier<ReportState> {
     state = state.copyWith(isLoading: true, errorMessage: null);
     
     try {
+      developer.log('Sending officer report with data:', name: 'ReportProvider');
+      developer.log('Name: $name', name: 'ReportProvider');
+      developer.log('Address: $address', name: 'ReportProvider');
+      developer.log('Phone: $phone', name: 'ReportProvider');
+      developer.log('Jenis Laporan: $jenisLaporan', name: 'ReportProvider');
+      developer.log('RW Number: $rwNumber', name: 'ReportProvider');
+      
       final result = await _apiService.sendReport(
         name: name,
         address: address,
         phone: phone,
         jenisLaporan: jenisLaporan,
-        detailLaporan: detailLaporan,
         rwNumber: rwNumber
       );
       
@@ -230,7 +246,9 @@ class ReportNotifier extends StateNotifier<ReportState> {
 }
 
 final reportProvider = StateNotifierProvider<ReportNotifier, ReportState>((ref) {
-  throw UnimplementedError();
+  final apiService = ref.watch(apiServiceProvider);
+  final socketService = ref.watch(socketServiceProvider);
+  return ReportNotifier(apiService, socketService);
 });
 
 // Provider for socket connection status

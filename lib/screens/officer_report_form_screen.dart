@@ -20,7 +20,6 @@ class _OfficerReportFormScreenState extends ConsumerState<OfficerReportFormScree
   
   final _addressController = TextEditingController();
   final _phoneController = TextEditingController();
-  final _detailController = TextEditingController();
   final _customJenisLaporanController = TextEditingController();
   
   String _selectedJenisLaporan = 'kemalingan';
@@ -36,7 +35,6 @@ class _OfficerReportFormScreenState extends ConsumerState<OfficerReportFormScree
   void dispose() {
     _addressController.dispose();
     _phoneController.dispose();
-    _detailController.dispose();
     _customJenisLaporanController.dispose();
     super.dispose();
   }
@@ -68,17 +66,17 @@ class _OfficerReportFormScreenState extends ConsumerState<OfficerReportFormScree
       }
       
       // Show debug logs to check values before sending
-      final user = ref.read(authProvider).user;
+      final authState = ref.read(authProvider);
+      final user = authState.user;
       final userName = user?.name ?? 'Petugas';
+      debugPrint('Auth state: isAuthenticated=${authState.isAuthenticated}, user=${user?.toJson()}');
       debugPrint('Sending report with name: $userName');
-      debugPrint('Sending report with detail: ${_detailController.text}');
       
       final success = await ref.read(reportProvider.notifier).sendPetugasReport(
         name: userName,
         address: _addressController.text,
         phone: phoneNumber,
         jenisLaporan: jenisLaporan,
-        detailLaporan: _detailController.text,
         rwNumber: _selectedRW,
       );
       
@@ -158,7 +156,6 @@ class _OfficerReportFormScreenState extends ConsumerState<OfficerReportFormScree
 
   @override
   Widget build(BuildContext context) {
-    // Access bottom and top safe area padding for proper layout
     final bottomSafePadding = MediaQuery.of(context).padding.bottom;
     final topSafePadding = MediaQuery.of(context).padding.top;
     
@@ -177,38 +174,83 @@ class _OfficerReportFormScreenState extends ConsumerState<OfficerReportFormScree
               height: topSafePadding,
               color: const Color(0xFFEFF6FF),
             ),
+            
             // Custom app bar
-            _buildAppBar(),
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Row(
+                children: [
+                  InkWell(
+                    onTap: () => context.pop(),
+                    borderRadius: BorderRadius.circular(8),
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(8),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.05),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: const Icon(Icons.arrow_back, color: Color(0xFF6366F1)),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Text(
+                    'Buat Laporan Petugas',
+                    style: GoogleFonts.inter(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: const Color(0xFF1E293B),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            
             // Content
             Expanded(
               child: SingleChildScrollView(
                 physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.all(20),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildHeader().animate().fadeIn(duration: 400.ms).slideY(begin: 0.1, end: 0),
-                      const SizedBox(height: 24),
-                      _buildJenisLaporanSection().animate(delay: 100.ms).fadeIn(duration: 400.ms).slideY(begin: 0.1, end: 0),
-                      const SizedBox(height: 20),
-                      _buildAddressSection().animate(delay: 300.ms).fadeIn(duration: 400.ms).slideY(begin: 0.1, end: 0),
-                      const SizedBox(height: 20),
-                      _buildPhoneSection().animate(delay: 400.ms).fadeIn(duration: 400.ms).slideY(begin: 0.1, end: 0),
-                      const SizedBox(height: 20),
-                      _buildDetailSection().animate(delay: 500.ms).fadeIn(duration: 400.ms).slideY(begin: 0.1, end: 0),
-                      const SizedBox(height: 20),
-                      _buildRWSelector().animate(delay: 600.ms).fadeIn(duration: 400.ms).slideY(begin: 0.1, end: 0),
-                      const SizedBox(height: 32),
-                      if (_errorMessage != null) _buildErrorMessage().animate().fadeIn(duration: 300.ms),
-                      _buildSubmitButton().animate(delay: 800.ms).fadeIn(duration: 500.ms).slideY(begin: 0.2, end: 0),
-                      const SizedBox(height: 16),
-                    ],
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Header Card
+                        _buildHeaderCard().animate().fadeIn(duration: 400.ms).slideY(begin: 0.1, end: 0),
+                        const SizedBox(height: 24),
+                        
+                        // Form Sections
+                        _buildModernJenisLaporanSection().animate(delay: 100.ms).fadeIn(duration: 400.ms).slideY(begin: 0.1, end: 0),
+                        const SizedBox(height: 20),
+                        _buildModernAddressSection().animate(delay: 200.ms).fadeIn(duration: 400.ms).slideY(begin: 0.1, end: 0),
+                        const SizedBox(height: 20),
+                        _buildModernPhoneSection().animate(delay: 300.ms).fadeIn(duration: 400.ms).slideY(begin: 0.1, end: 0),
+                        const SizedBox(height: 20),
+                        _buildModernRWSelector().animate(delay: 400.ms).fadeIn(duration: 400.ms).slideY(begin: 0.1, end: 0),
+                        const SizedBox(height: 32),
+                        
+                        // Error Message
+                        if (_errorMessage != null) 
+                          _buildModernErrorMessage().animate().fadeIn(duration: 300.ms),
+                        
+                        // Submit Button
+                        _buildModernSubmitButton().animate(delay: 500.ms).fadeIn(duration: 500.ms).slideY(begin: 0.2, end: 0),
+                        SizedBox(height: bottomSafePadding + 20),
+                      ],
+                    ),
                   ),
                 ),
               ),
             ),
+            
             // Bottom safe area
             Container(
               height: bottomSafePadding,
@@ -219,188 +261,230 @@ class _OfficerReportFormScreenState extends ConsumerState<OfficerReportFormScree
       ),
     );
   }
-  
-  Widget _buildAppBar() {
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Row(
-        children: [
-          InkWell(
-            onTap: () => context.pop(),
-            borderRadius: BorderRadius.circular(8),
-            child: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(8),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withAlpha(13),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: const Icon(Icons.arrow_back, color: Color(0xFF6366F1)),
-            ),
+
+  // Modern UI Components
+  Widget _buildHeaderCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 20,
+            offset: const Offset(0, 5),
           ),
-          const SizedBox(width: 16),
-          Text(
-            'Buat Laporan Petugas',
-            style: GoogleFonts.inter(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: const Color(0xFF1E293B),
-            ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF6366F1).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.report_outlined,
+                  color: Color(0xFF6366F1),
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Laporkan Kejadian',
+                      style: GoogleFonts.inter(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: const Color(0xFF1E293B),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Isi formulir dengan lengkap untuk penanganan optimal',
+                      style: GoogleFonts.inter(
+                        fontSize: 14,
+                        color: const Color(0xFF64748B),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ],
       ),
     );
   }
 
-  Widget _buildHeader() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Laporkan Kejadian',
-          style: GoogleFonts.inter(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-            color: const Color(0xFF1E293B),
+  Widget _buildModernJenisLaporanSection() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 15,
+            offset: const Offset(0, 3),
           ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'Masukkan data laporan secara lengkap untuk penanganan lebih cepat.',
-          style: GoogleFonts.inter(
-            fontSize: 14,
-            color: const Color(0xFF64748B),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildJenisLaporanSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Jenis Laporan',
-          style: GoogleFonts.inter(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            color: const Color(0xFF334155),
-          ),
-        ),
-        const SizedBox(height: 8),
-        Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
-          ),
-          child: Column(
-            children: _jenisLaporanOptions.map((option) {
-              return RadioListTile<String>(
-                title: Text(
-                  option == 'lainnya' 
-                      ? 'Lainnya' 
-                      : option[0].toUpperCase() + option.substring(1),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.category_outlined,
+                  color: const Color(0xFF6366F1),
+                  size: 20,
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  'Jenis Laporan',
                   style: GoogleFonts.inter(
-                    fontSize: 14,
-                    fontWeight: _selectedJenisLaporan == option 
-                        ? FontWeight.w600 
-                        : FontWeight.normal,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFF1E293B),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          ...(_jenisLaporanOptions.asMap().entries.map((entry) {
+            final index = entry.key;
+            final option = entry.value;
+            final isLast = index == _jenisLaporanOptions.length - 1;
+            
+            return Container(
+              decoration: BoxDecoration(
+                border: !isLast ? Border(bottom: BorderSide(color: Colors.grey[100]!)) : null,
+              ),
+              child: RadioListTile<String>(
+                title: Text(
+                  option == 'lainnya' ? 'Lainnya' : option[0].toUpperCase() + option.substring(1),
+                  style: GoogleFonts.inter(
+                    fontSize: 15,
+                    fontWeight: _selectedJenisLaporan == option ? FontWeight.w600 : FontWeight.normal,
+                    color: _selectedJenisLaporan == option ? const Color(0xFF6366F1) : const Color(0xFF1E293B),
                   ),
                 ),
                 value: option,
                 groupValue: _selectedJenisLaporan,
                 activeColor: const Color(0xFF6366F1),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
                 onChanged: (value) {
                   if (value == null) return;
-                  
                   setState(() {
                     _selectedJenisLaporan = value;
                   });
-                  
-                  // Add haptic feedback
                   HapticFeedback.selectionClick();
                 },
-              );
-            }).toList(),
-          ),
-        ),
-        if (_selectedJenisLaporan == 'lainnya')
-          Padding(
-            padding: const EdgeInsets.only(top: 12),
-            child: TextFormField(
-              controller: _customJenisLaporanController,
-              decoration: InputDecoration(
-                labelText: 'Jenis Laporan Lainnya',
-                hintText: 'Masukkan jenis laporan',
-                filled: true,
-                fillColor: Colors.white,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-                ),
               ),
-              validator: (value) {
-                if (_selectedJenisLaporan == 'lainnya' && (value == null || value.isEmpty)) {
-                  return 'Jenis laporan harus diisi';
-                }
-                return null;
-              },
+            );
+          }).toList()),
+          if (_selectedJenisLaporan == 'lainnya')
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+              child: TextFormField(
+                controller: _customJenisLaporanController,
+                decoration: InputDecoration(
+                  labelText: 'Jenis Laporan Lainnya',
+                  hintText: 'Masukkan jenis laporan',
+                  filled: true,
+                  fillColor: Colors.grey[50],
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Colors.grey[300]!),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Color(0xFF6366F1), width: 2),
+                  ),
+                  prefixIcon: const Icon(Icons.edit_outlined, color: Color(0xFF6366F1)),
+                ),
+                validator: (value) {
+                  if (_selectedJenisLaporan == 'lainnya' && (value == null || value.isEmpty)) {
+                    return 'Jenis laporan harus diisi';
+                  }
+                  return null;
+                },
+              ),
             ),
-          ),
-      ],
+          if (_selectedJenisLaporan != 'lainnya') const SizedBox(height: 20),
+        ],
+      ),
     );
   }
 
-  Widget _buildAddressSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Alamat Kejadian',
-          style: GoogleFonts.inter(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            color: const Color(0xFF334155),
+  Widget _buildModernAddressSection() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 15,
+            offset: const Offset(0, 3),
           ),
-        ),
-        const SizedBox(height: 8),
-        Container(
-          decoration: BoxDecoration(
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.location_on_outlined,
+                color: const Color(0xFF6366F1),
+                size: 20,
+              ),
+              const SizedBox(width: 12),
+              Text(
+                'Alamat Kejadian',
+                style: GoogleFonts.inter(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF1E293B),
+                ),
               ),
             ],
-            borderRadius: BorderRadius.circular(12),
           ),
-          child: TextFormField(
+          const SizedBox(height: 16),
+          TextFormField(
             controller: _addressController,
             decoration: InputDecoration(
               labelText: 'Alamat Lengkap',
-              hintText: 'Masukkan alamat kejadian',
+              hintText: 'Masukkan alamat kejadian dengan detail...',
               filled: true,
-              fillColor: Colors.white,
+              fillColor: Colors.grey[50],
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                borderSide: BorderSide(color: Colors.grey[300]!),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: const BorderSide(color: Color(0xFF6366F1), width: 2),
               ),
-              prefixIcon: const Icon(Icons.location_on_outlined, color: Color(0xFF6366F1)),
-              alignLabelWithHint: true,
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: Colors.grey[300]!),
+              ),
+              prefixIcon: const Icon(Icons.home_outlined, color: Color(0xFF6366F1)),
             ),
             validator: (value) {
               if (value == null || value.isEmpty) {
@@ -411,247 +495,273 @@ class _OfficerReportFormScreenState extends ConsumerState<OfficerReportFormScree
             maxLines: 3,
             textCapitalization: TextCapitalization.sentences,
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
-  Widget _buildPhoneSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Nomor Telepon',
-          style: GoogleFonts.inter(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            color: const Color(0xFF334155),
+  Widget _buildModernPhoneSection() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 15,
+            offset: const Offset(0, 3),
           ),
-        ),
-        const SizedBox(height: 8),
-        TextFormField(
-          controller: _phoneController,
-          decoration: InputDecoration(
-            labelText: 'Nomor Telepon',
-            hintText: 'Masukkan nomor telepon',
-            filled: true,
-            fillColor: Colors.white,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color(0xFF6366F1), width: 2),
-            ),
-            prefixIcon: const Icon(Icons.phone_outlined, color: Color(0xFF6366F1)),
-            prefixText: '+62 ',
-          ),
-          keyboardType: TextInputType.phone,
-          validator: (value) {
-            if (value == null || value.isEmpty) {
-              return 'Nomor telepon harus diisi';
-            }
-            return null;
-          },
-        ),
-      ],
-    );
-  }
-
-  Widget _buildDetailSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Detail Kejadian',
-          style: GoogleFonts.inter(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            color: const Color(0xFF334155),
-          ),
-        ),
-        const SizedBox(height: 8),
-        TextFormField(
-          controller: _detailController,
-          decoration: InputDecoration(
-            labelText: 'Detail Kejadian',
-            hintText: 'Jelaskan detail kejadian',
-            filled: true,
-            fillColor: Colors.white,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-            ),
-            prefixIcon: const Icon(Icons.description_outlined, color: Color(0xFF6366F1)),
-          ),
-          validator: (value) {
-            if (value == null || value.isEmpty) {
-              return 'Detail kejadian harus diisi';
-            }
-            return null;
-          },
-          maxLines: 4,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildRWSelector() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'RW Kejadian',
-          style: GoogleFonts.inter(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            color: const Color(0xFF334155),
-          ),
-        ),
-        const SizedBox(height: 8),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Row(
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             children: [
-              const Icon(Icons.home_work_outlined, color: Color(0xFF6366F1)),
+              Icon(
+                Icons.phone_outlined,
+                color: const Color(0xFF6366F1),
+                size: 20,
+              ),
               const SizedBox(width: 12),
-              Expanded(
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: _selectedRW,
-                    isExpanded: true,
-                    menuMaxHeight: 300, // Make menu scrollable with fixed height
-                    isDense: true, // More compact dropdown
-                    icon: const Icon(Icons.keyboard_arrow_down, color: Color(0xFF6366F1)),
-                    items: _rwOptions
-                        .map((rw) => DropdownMenuItem(
-                              value: rw,
-                              child: Text(
-                                'RW $rw',
-                                style: GoogleFonts.inter(
-                                  fontSize: 15,
-                                  color: const Color(0xFF334155),
-                                ),
-                              ),
-                            ))
-                        .toList(),
-                    onChanged: (value) {
-                      if (value == null) return;
-                      
-                      setState(() {
-                        _selectedRW = value;
-                      });
-                      
-                      // Add haptic feedback
-                      HapticFeedback.selectionClick();
-                    },
-                  ),
+              Text(
+                'Nomor Telepon',
+                style: GoogleFonts.inter(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF1E293B),
                 ),
               ),
             ],
           ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildErrorMessage() {
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.red.withAlpha(30),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.red.withAlpha(100)),
-      ),
-      child: Text(
-        _errorMessage ?? '',
-        style: GoogleFonts.inter(
-          fontSize: 14,
-          color: Colors.red[800],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSubmitButton() {
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF6366F1).withOpacity(0.25),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
+          const SizedBox(height: 16),
+          TextFormField(
+            controller: _phoneController,
+            decoration: InputDecoration(
+              labelText: 'Nomor Telepon',
+              hintText: 'Masukkan nomor telepon aktif',
+              filled: true,
+              fillColor: Colors.grey[50],
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: Colors.grey[300]!),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: Color(0xFF6366F1), width: 2),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: Colors.grey[300]!),
+              ),
+              prefixIcon: Container(
+                padding: const EdgeInsets.all(12),
+                child: Text(
+                  '+62',
+                  style: GoogleFonts.inter(
+                    fontWeight: FontWeight.w500,
+                    color: const Color(0xFF6366F1),
+                  ),
+                ),
+              ),
+            ),
+            keyboardType: TextInputType.phone,
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return 'Nomor telepon harus diisi';
+              }
+              return null;
+            },
           ),
         ],
       ),
-      child: ElevatedButton(
-        onPressed: _isSubmitting ? null : _submitReport,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFF6366F1),
-          foregroundColor: Colors.white,
-          padding: const EdgeInsets.symmetric(vertical: 18),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+    );
+  }
+
+  Widget _buildModernRWSelector() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 15,
+            offset: const Offset(0, 3),
           ),
-          elevation: 0,
-          disabledBackgroundColor: const Color(0xFF6366F1).withAlpha(150),
-        ),
-        child: _isSubmitting
-            ? Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  SizedBox(
-                    height: 20,
-                    width: 20,
-                    child: CircularProgressIndicator(
-                      color: Colors.white,
-                      strokeWidth: 2,
-                      backgroundColor: Colors.white.withOpacity(0.3),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Text(
-                    'Mengirim...',
-                    style: GoogleFonts.inter(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              )
-            : Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.send_rounded),
-                  const SizedBox(width: 12),
-                  Text(
-                    'Kirim Laporan',
-                    style: GoogleFonts.inter(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
+        ],
       ),
-    ).animate(onPlay: (controller) => controller.repeat(reverse: true))
-      .shimmer(delay: 1000.ms, duration: 1500.ms, color: Colors.white24);
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.home_work_outlined,
+                color: const Color(0xFF6366F1),
+                size: 20,
+              ),
+              const SizedBox(width: 12),
+              Text(
+                'RW Kejadian',
+                style: GoogleFonts.inter(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF1E293B),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.grey[50],
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey[300]!),
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                value: _selectedRW,
+                isExpanded: true,
+                menuMaxHeight: 250,
+                itemHeight: 48,
+                isDense: true,
+                icon: const Icon(Icons.keyboard_arrow_down, color: Color(0xFF6366F1)),
+                items: _rwOptions
+                    .map((rw) => DropdownMenuItem(
+                          value: rw,
+                          child: Text(
+                            'RW $rw',
+                            style: GoogleFonts.inter(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w500,
+                              color: const Color(0xFF1E293B),
+                            ),
+                          ),
+                        ))
+                    .toList(),
+                onChanged: (value) {
+                  if (value == null) return;
+                  setState(() {
+                    _selectedRW = value;
+                  });
+                  HapticFeedback.selectionClick();
+                },
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildModernErrorMessage() {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 20),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.red.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.red.shade200),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.error_outline, color: Colors.red.shade600, size: 20),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              _errorMessage ?? '',
+              style: GoogleFonts.inter(
+                fontSize: 14,
+                color: Colors.red.shade700,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildModernSubmitButton() {
+    return Container(
+      width: double.infinity,
+      height: 56,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        gradient: _isSubmitting 
+          ? LinearGradient(
+              colors: [Colors.grey.shade400, Colors.grey.shade500],
+            )
+          : const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+            ),
+        boxShadow: _isSubmitting ? [] : [
+          BoxShadow(
+            color: const Color(0xFF6366F1).withOpacity(0.3),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: _isSubmitting ? null : _submitReport,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: _isSubmitting
+                ? Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2.5,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Text(
+                        'Mengirim Laporan...',
+                        style: GoogleFonts.inter(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
+                  )
+                : Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(
+                        Icons.send_rounded,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        'Kirim Laporan',
+                        style: GoogleFonts.inter(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+          ),
+        ),
+      ),
+    );
   }
 }
