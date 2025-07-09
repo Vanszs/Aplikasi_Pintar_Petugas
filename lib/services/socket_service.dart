@@ -23,7 +23,9 @@ class SocketService extends ChangeNotifier {
         'reconnection': true,
         'reconnectionDelay': 1000,
         'reconnectionDelayMax': 5000,
-        'reconnectionAttempts': 5,
+        'reconnectionAttempts': 99999, // Infinite retry attempts
+        'forceNew': false,
+        'timeout': 20000, // 20 seconds timeout
       });
 
       _socket!.onConnect((_) {
@@ -35,6 +37,13 @@ class SocketService extends ChangeNotifier {
       _socket!.onDisconnect((_) {
         _connected = false;
         developer.log('Socket disconnected', name: 'SocketService');
+        // Try to reconnect after a delay when disconnected
+        Future.delayed(Duration(seconds: 3), () {
+          if (!_connected && _socket != null) {
+            developer.log('Attempting reconnection after disconnect', name: 'SocketService');
+            _socket!.connect();
+          }
+        });
         notifyListeners();
       });
 

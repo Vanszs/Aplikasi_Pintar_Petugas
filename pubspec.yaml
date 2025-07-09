@@ -17,6 +17,9 @@ dependencies:
   socket_io_client: ^2.0.3+1
   connectivity_plus: ^5.0.2
   url_launcher: ^6.2.4
+  # Notifications & Vibration
+  flutter_local_notifications: ^16.3.2
+  vibration: ^2.0.0
   # State Management
   flutter_riverpod: ^2.4.10
   # Storage

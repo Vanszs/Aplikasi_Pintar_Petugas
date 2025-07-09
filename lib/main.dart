@@ -91,7 +91,7 @@ void main() async {
         reportProvider.overrideWith((ref) {
           final apiService = ref.watch(apiServiceProvider);
           final socketService = ref.watch(socketServiceProvider);
-          return ReportNotifier(apiService, socketService);
+          return ReportNotifier(apiService, socketService, ref);
         }),
       ],
       child: const MyApp(),

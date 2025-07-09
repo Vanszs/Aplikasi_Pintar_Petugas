@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:developer' as developer;
 import '../models/report.dart';
 import '../main.dart';
+import '../services/notification_service.dart';
 
 class ReportState {
   final List<Report> reports;
@@ -46,9 +47,11 @@ class ReportState {
 class ReportNotifier extends StateNotifier<ReportState> {
   final dynamic _apiService;
   final dynamic _socketService;
+  late final NotificationService _notificationService;
 
-  ReportNotifier(this._apiService, this._socketService) 
+  ReportNotifier(this._apiService, this._socketService, Ref ref) 
       : super(ReportState()) {
+    _notificationService = ref.read(notificationServiceProvider);
     _listenForReports();
     _loadInitialData();
   }
@@ -57,6 +60,25 @@ class ReportNotifier extends StateNotifier<ReportState> {
     try {
       _socketService.on('new_report', (data) {
         developer.log('New report received via socket: $data', name: 'ReportProvider');
+        
+        // Parse report data
+        try {
+          final report = Report(
+            id: data['id'],
+            userId: 0, // Backend tidak mengirim user_id
+            address: data['address'] ?? 'Alamat tidak diketahui',
+            createdAt: DateTime.parse(data['created_at'] ?? DateTime.now().toIso8601String()),
+            userName: data['name'] ?? 'Tanpa nama',
+            jenisLaporan: data['jenis_laporan'],
+          );
+          
+          // Tampilkan notifikasi dengan getaran untuk laporan baru
+          _notificationService.showNewReportNotification(report);
+          
+        } catch (parseError) {
+          developer.log('Error parsing socket report data: $parseError', name: 'ReportProvider');
+        }
+        
         // Force reload reports when we receive a new one via socket
         loadAllReports(); // Changed to loadAllReports for petugas
       });
@@ -248,7 +270,7 @@ class ReportNotifier extends StateNotifier<ReportState> {
 final reportProvider = StateNotifierProvider<ReportNotifier, ReportState>((ref) {
   final apiService = ref.watch(apiServiceProvider);
   final socketService = ref.watch(socketServiceProvider);
-  return ReportNotifier(apiService, socketService);
+  return ReportNotifier(apiService, socketService, ref);
 });
 
 // Provider for socket connection status
