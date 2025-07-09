@@ -1,0 +1,14 @@
+{
+	"folders": [
+		{
+			"path": "../../../.."
+		},
+		{
+			"path": "../../../../../../lapor_maling_app_v2/assets"
+		},
+		{
+			"path": "../../../../../../lapor_maling_app_v2/lib"
+		}
+	],
+	"settings": {}
+}

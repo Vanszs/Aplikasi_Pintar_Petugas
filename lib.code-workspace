@@ -1,0 +1,17 @@
+{
+	"folders": [
+		{
+			"name": "lib",
+			"path": "../../Aplikasi_Pintar_Kelurahan/lapor_maling_app_v2/lib"
+		},
+		{
+			"name": "petugas_pintar",
+			"path": "."
+		},
+		{
+			"name": "assets",
+			"path": "../../Aplikasi_Pintar_Kelurahan/lapor_maling_app_v2/assets"
+		}
+	],
+	"settings": {}
+}

@@ -1,0 +1,224 @@
+
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:developer' as developer;
+import 'dart:convert';
+import '../models/user.dart';
+import '../services/api.dart';
+
+
+extension AuthNotifierUserUpdate on AuthNotifier {
+  void updateUser(User user) {
+    // ignore: invalid_use_of_protected_member
+    // ignore: invalid_use_of_protected_member, invalid_use_of_visible_for_testing_member
+    state = state.copyWith(user: user);
+  }
+}
+
+// Auth state model
+class AuthState {
+  final bool isAuthenticated;
+  final bool isLoading;
+  final User? user;
+  final String? token;
+  final String? errorMessage;
+
+  AuthState({
+    this.isAuthenticated = false,
+    this.isLoading = false,
+    this.user,
+    this.token,
+    this.errorMessage,
+  });
+
+  AuthState copyWith({
+    bool? isAuthenticated,
+    bool? isLoading,
+    User? user,
+    String? token,
+    String? errorMessage,
+  }) {
+    return AuthState(
+      isAuthenticated: isAuthenticated ?? this.isAuthenticated,
+      isLoading: isLoading ?? this.isLoading,
+      user: user ?? this.user,
+      token: token ?? this.token,
+      errorMessage: errorMessage ?? this.errorMessage,
+    );
+  }
+}
+
+// Auth notifier class
+class AuthNotifier extends StateNotifier<AuthState> {
+  final ApiService _apiService;
+  final SharedPreferences _prefs;
+
+  AuthNotifier(this._apiService, this._prefs) : super(AuthState()) {
+    _initializeAuth();
+  }
+
+  Future<void> _initializeAuth() async {
+    developer.log('Initializing authentication', name: 'AuthProvider');
+    final token = _prefs.getString('auth_token');
+    final userJson = _prefs.getString('user_data');
+    final username = _prefs.getString('username');
+    
+    if (token != null && userJson != null && username != null) {
+      try {
+        _apiService.token = token;
+        _apiService.currentUsername = username;
+        final user = User.fromJson(
+            Map<String, dynamic>.from(json.decode(userJson) as Map));
+        
+        // Set authentication state with stored data
+        state = state.copyWith(
+          isAuthenticated: true,
+          token: token,
+          user: user,
+        );
+        
+        // Validate token without requiring immediate refresh
+        _validateToken();
+        
+        developer.log('Authentication restored for user: ${user.username}', name: 'AuthProvider');
+      } catch (e) {
+        developer.log('Error restoring authentication: $e', name: 'AuthProvider');
+        // Clear invalid data
+        await _clearStoredAuth();
+      }
+    } else {
+      developer.log('No saved authentication found', name: 'AuthProvider');
+    }
+  }
+
+  // Method to validate token
+  Future<void> _validateToken() async {
+    try {
+      // Check token validity by trying to fetch user profile
+      final result = await _apiService.getUserProfile();
+      
+      if (!result['success']) {
+        developer.log('Stored token is invalid, attempting silent refresh', name: 'AuthProvider');
+        await _refreshToken();
+      }
+    } catch (e) {
+      developer.log('Error validating token: $e', name: 'AuthProvider');
+    }
+  }
+
+  // Method for token refresh
+  Future<bool> _refreshToken() async {
+    if (state.token == null) return false;
+    
+    try {
+      // Use the provided API service to refresh token
+      final result = await _apiService.refreshToken(state.token!);
+      
+      if (result['success']) {
+        final newToken = result['token'];
+        _apiService.token = newToken;
+        await _prefs.setString('auth_token', newToken);
+        state = state.copyWith(token: newToken);
+        developer.log('Token refreshed successfully', name: 'AuthProvider');
+        return true;
+      }
+      
+      // If refresh failed, user needs to login again
+      developer.log('Token refresh failed, logging out', name: 'AuthProvider');
+      await logout();
+      return false;
+      
+    } catch (e) {
+      developer.log('Error refreshing token: $e', name: 'AuthProvider');
+      return false;
+    }
+  }
+
+  Future<bool> login(String username, String password) async {
+    state = state.copyWith(isLoading: true, errorMessage: null);
+    
+    try {
+      final result = await _apiService.login(username, password);
+      
+      if (result['success']) {
+        final user = result['user'];
+        final token = result['token'];
+        
+        // Save to shared preferences
+        await _prefs.setString('auth_token', token);
+        await _prefs.setString('user_data', json.encode(user.toJson()));
+        await _prefs.setString('username', username);
+        
+        state = state.copyWith(
+          isAuthenticated: true,
+          isLoading: false,
+          user: user,
+          token: token,
+        );
+        
+        developer.log('Login successful for user: $username', name: 'AuthProvider');
+        return true;
+      } else {
+        developer.log('Login failed for user: $username', name: 'AuthProvider');
+        state = state.copyWith(
+          isLoading: false,
+          errorMessage: result['message'],
+        );
+        return false;
+      }
+    } catch (e) {
+      developer.log('Login error: $e', name: 'AuthProvider');
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: 'Error: ${e.toString()}',
+      );
+      return false;
+    }
+  }
+
+  Future<void> logout() async {
+    try {
+      // Call API logout endpoint to invalidate token on server
+      final result = await _apiService.logout();
+      
+      if (!result['success']) {
+        developer.log('Warning: Server-side logout failed', name: 'AuthProvider');
+      }
+      
+      // Clear stored auth data regardless of API response
+      await _clearStoredAuth();
+      
+      // Reset API service
+      _apiService.clearSession();
+      
+      // Reset auth state
+      state = AuthState();
+      
+      developer.log('User logged out', name: 'AuthProvider');
+    } catch (e) {
+      developer.log('Error during logout: $e', name: 'AuthProvider');
+      
+      // Still clear auth data and reset state on error
+      await _clearStoredAuth();
+      _apiService.clearSession();
+      state = AuthState();
+    }
+  }
+
+  void setErrorMessage(String message) {
+    state = state.copyWith(errorMessage: message);
+  }
+
+  Future<void> _clearStoredAuth() async {
+    await _prefs.remove('auth_token');
+    await _prefs.remove('user_data');
+    await _prefs.remove('username');
+    developer.log('Stored auth data cleared', name: 'AuthProvider');
+  }
+}
+
+// Provider definition
+final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
+  throw UnimplementedError();
+});
+
