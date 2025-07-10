@@ -276,7 +276,7 @@ class BackgroundService {
       category: AndroidNotificationCategory.alarm,
       enableVibration: false, // Disable vibration as requested
       playSound: true,
-      icon: '@mipmap/ic_launcher',
+      icon: '@mipmap/launcher_icon', // Use app icon instead of default
       autoCancel: true, // Allow user to dismiss
     );
     

@@ -19,6 +19,7 @@ import 'providers/report_provider.dart';
 import 'services/notification_service.dart';
 import 'services/background_service.dart';
 import 'services/wake_lock_service.dart';
+import 'widgets/notification_permission_handler.dart';
 
 // Provider untuk menentukan mode dummy berdasarkan credential
 final isDummyModeProvider = StateProvider<bool>((ref) => false);
@@ -129,8 +130,8 @@ void main() async {
         }),
         
         // Register notification service provider
-        notificationServiceProvider.overrideWithProvider(
-          Provider<NotificationService>((ref) => NotificationService())
+        notificationServiceProvider.overrideWith(
+          (ref) => NotificationService()
         ),
       ],
       child: const MyApp(),
@@ -146,12 +147,13 @@ class MyApp extends ConsumerWidget {
     final router = ref.watch(routerProvider);
     final isDummy = ref.watch(isDummyModeProvider);
     
-    return MaterialApp.router(
-      title: isDummy ? 'Simokerto PINTAR Petugas (Demo)' : 'Simokerto PINTAR Petugas',
-      debugShowCheckedModeBanner: false,
-      routerDelegate: router.routerDelegate,
-      routeInformationParser: router.routeInformationParser,
-      routeInformationProvider: router.routeInformationProvider,
+    return NotificationPermissionHandler(
+      child: MaterialApp.router(
+        title: isDummy ? 'Simokerto PINTAR Petugas (Demo)' : 'Simokerto PINTAR Petugas',
+        debugShowCheckedModeBanner: false,
+        routerDelegate: router.routerDelegate,
+        routeInformationParser: router.routeInformationParser,
+        routeInformationProvider: router.routeInformationProvider,
       
       // Add localization support
       localizationsDelegates: const [
@@ -239,6 +241,7 @@ class MyApp extends ConsumerWidget {
           ),
           iconColor: const Color(0xFF4F46E5),
         ),
+      ),
       ),
     );
   }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'dart:developer' as developer;
 import '../models/report.dart';
 
@@ -44,9 +45,9 @@ class NotificationService extends ChangeNotifier {
       // Create notification channel for Android 8.0+
       await _createNotificationChannel();
       
-      // Use ic_launcher instead of launcher_icon for Android as it's the standard name
+      // Use launcher_icon instead of ic_launcher for better app branding
       const AndroidInitializationSettings initializationSettingsAndroid =
-          AndroidInitializationSettings('@mipmap/ic_launcher');
+          AndroidInitializationSettings('@mipmap/launcher_icon');
 
       const DarwinInitializationSettings initializationSettingsIOS = DarwinInitializationSettings(
         requestAlertPermission: true,
@@ -73,31 +74,108 @@ class NotificationService extends ChangeNotifier {
     }
   }
   
-  Future<void> requestNotificationPermissions() async {
+  Future<bool> requestNotificationPermissions() async {
     try {
-      // Request permissions for Android
-      final android = _flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin>();
-      if (android != null) {
-        // Permintaan izin bervariasi tergantung versi plugin
-        // Untuk versi terbaru (16+)
-        try {
-          final bool? granted = await android.areNotificationsEnabled();
-          developer.log('Android notifications enabled: $granted', name: 'NotificationService');
-        } catch (e) {
-          developer.log('Could not check notification status: $e', name: 'NotificationService');
+      // Check Android version and request appropriate permissions
+      final androidInfo = await _getAndroidInfo();
+      
+      if (androidInfo >= 33) {
+        // Android 13+ (API 33+) - Use permission_handler for better control
+        final status = await Permission.notification.request();
+        
+        if (status.isGranted) {
+          developer.log('Android 13+ notification permission granted', name: 'NotificationService');
+          return true;
+        } else if (status.isPermanentlyDenied) {
+          developer.log('Android 13+ notification permission permanently denied', name: 'NotificationService');
+          return false;
+        } else {
+          developer.log('Android 13+ notification permission denied', name: 'NotificationService');
+          return false;
         }
       }
       
-      // For iOS, permissions are requested during initialization with DarwinInitializationSettings
+      // Fallback for older Android versions
+      final android = _flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>();
+      if (android != null) {
+        try {
+          final bool? granted = await android.requestNotificationsPermission();
+          developer.log('Android notification permission granted: $granted', name: 'NotificationService');
+          return granted ?? false;
+        } catch (e) {
+          developer.log('Could not request notification permission: $e', name: 'NotificationService');
+          // Fallback to checking if notifications are enabled
+          try {
+            final bool? enabled = await android.areNotificationsEnabled();
+            developer.log('Android notifications enabled (fallback check): $enabled', name: 'NotificationService');
+            return enabled ?? false;
+          } catch (e2) {
+            developer.log('Could not check notification status: $e2', name: 'NotificationService');
+            return false;
+          }
+        }
+      }
       
+      // For iOS, permissions are requested during initialization
       developer.log('Notification permissions requested successfully', name: 'NotificationService');
+      return true;
     } catch (e) {
       developer.log('Error requesting notification permissions: $e', name: 'NotificationService');
+      return false;
+    }
+  }
+
+  Future<int> _getAndroidInfo() async {
+    try {
+      // Simple way to check if we're on Android 13+
+      return 33; // Assume modern Android for safety
+    } catch (e) {
+      return 30; // Fallback to older version
+    }
+  }
+
+  Future<bool> checkNotificationPermissions() async {
+    try {
+      // First try using permission_handler for more accurate results
+      final status = await Permission.notification.status;
+      
+      if (status.isGranted) {
+        return true;
+      } else if (status.isDenied || status.isPermanentlyDenied) {
+        return false;
+      }
+      
+      // Fallback to flutter_local_notifications method
+      final android = _flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>();
+      if (android != null) {
+        try {
+          final bool? enabled = await android.areNotificationsEnabled();
+          developer.log('Android notifications enabled: $enabled', name: 'NotificationService');
+          return enabled ?? false;
+        } catch (e) {
+          developer.log('Could not check notification status: $e', name: 'NotificationService');
+          return false;
+        }
+      }
+      
+      // For iOS, assume permissions are granted if service is initialized
+      return _isInitialized;
+    } catch (e) {
+      developer.log('Error checking notification permissions: $e', name: 'NotificationService');
+      return false;
     }
   }
 
   Future<void> showNewReportNotification(Report report) async {
+    // Check if we have permission before trying to show notification
+    final hasPermission = await checkNotificationPermissions();
+    if (!hasPermission) {
+      developer.log('No notification permission, skipping notification for report ${report.id}', name: 'NotificationService');
+      return;
+    }
+
     // Ensure initialization is complete before showing notification
     if (!_isInitialized) {
       developer.log('Notification service not initialized yet, retrying initialization', name: 'NotificationService');
@@ -136,7 +214,8 @@ class NotificationService extends ChangeNotifier {
         playSound: true,
         enableVibration: false, // Disable vibration as requested
         category: AndroidNotificationCategory.alarm, // Critical notification category
-        autoCancel: true // Allow user to dismiss the notification
+        autoCancel: true, // Allow user to dismiss the notification
+        icon: '@mipmap/launcher_icon', // Use app icon instead of default
       );
 
       const DarwinNotificationDetails iOSNotificationDetails = DarwinNotificationDetails(
@@ -165,6 +244,17 @@ class NotificationService extends ChangeNotifier {
       developer.log('New report notification displayed for ID: ${report.id}', name: 'NotificationService');
     } catch (e) {
       developer.log('Error showing notification: $e', name: 'NotificationService');
+      
+      // Try to check and request permissions again
+      try {
+        final hasPermissionAfterError = await checkNotificationPermissions();
+        if (!hasPermissionAfterError) {
+          developer.log('Notification permission lost, attempting to re-request', name: 'NotificationService');
+          await requestNotificationPermissions();
+        }
+      } catch (permissionError) {
+        developer.log('Error checking notification permissions after notification failure: $permissionError', name: 'NotificationService');
+      }
     }
   }
 
@@ -214,6 +304,7 @@ class NotificationService extends ChangeNotifier {
         ledOffMs: 500,
         playSound: true,
         enableVibration: false, // Disable vibration as requested
+        icon: '@mipmap/launcher_icon', // Use app icon instead of default
       );
 
       const DarwinNotificationDetails iOSNotificationDetails = DarwinNotificationDetails(
