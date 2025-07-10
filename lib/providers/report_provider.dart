@@ -293,7 +293,8 @@ class ReportNotifier extends StateNotifier<ReportState> {
     state = state.copyWith(isLoadingDetail: true);
     
     try {
-      final result = await _apiService.getReportById(reportId);
+      // Using the correct API method name that exists in the ApiService
+      final result = await _apiService.getReportDetail(reportId);
       
       if (result['success']) {
         state = state.copyWith(

@@ -63,16 +63,30 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
         }),
       ]);
       
-      debugPrint('loadReportDetail completed');
+      // Check if report was actually loaded successfully
+      final reportState = ref.read(reportProvider);
+      if (reportState.errorMessage != null) {
+        throw Exception(reportState.errorMessage);
+      }
+      if (reportState.selectedReport == null) {
+        throw Exception('Laporan tidak dapat dimuat. Silakan coba lagi.');
+      }
+      
+      debugPrint('loadReportDetail completed successfully');
     } catch (e) {
       debugPrint('ERROR in loadReportDetail: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error memuat detail: ${e.toString()}'),
+            content: Text('Error memuat detail: ${e.toString().replaceAll('Exception: ', '')}'),
             backgroundColor: Colors.red,
+            duration: Duration(seconds: 3),
           ),
         );
+        // Return to previous screen after delay
+        Future.delayed(Duration(seconds: 2), () {
+          if (mounted) context.pop();
+        });
       }
     }
     

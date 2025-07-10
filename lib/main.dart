@@ -17,6 +17,8 @@ import 'services/connectivity_service.dart';
 import 'providers/auth_provider.dart';
 import 'providers/report_provider.dart';
 import 'services/notification_service.dart';
+import 'services/background_service.dart';
+import 'services/wake_lock_service.dart';
 
 // Provider untuk menentukan mode dummy berdasarkan credential
 final isDummyModeProvider = StateProvider<bool>((ref) => false);
@@ -69,12 +71,27 @@ final socketServiceProvider = Provider<dynamic>((ref) {
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Only enable WakeLock initially for setup, will be managed by lifecycle observer
+  // Initialize background service for persistent socket connections
   try {
-    await WakelockPlus.enable();
-    developer.log('WakeLock temporarily enabled during app startup', name: 'Main');
+    await BackgroundService.initializeService();
+    developer.log('Background service initialized', name: 'Main');
   } catch (e) {
-    developer.log('Failed to enable WakeLock: $e', name: 'Main');
+    developer.log('Error initializing background service: $e', name: 'Main');
+  }
+  
+  // Enable custom WakeLock service with keepalive pulses
+  try {
+    await WakeLockService.enableWakeLock();
+    developer.log('Enhanced WakeLock enabled with keepalive pulses', name: 'Main');
+  } catch (e) {
+    developer.log('Failed to enable enhanced WakeLock: $e', name: 'Main');
+    // Fallback to basic wakelock if custom service fails
+    try {
+      await WakelockPlus.enable();
+      developer.log('Basic WakeLock enabled as fallback', name: 'Main');
+    } catch (e) {
+      developer.log('Failed to enable WakeLock: $e', name: 'Main');
+    }
   }
   
   // Set preferred orientations

@@ -7,6 +7,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:socket_io_client/socket_io_client.dart' as IO;
 import 'dart:developer' as developer;
 import '../models/report.dart';
+import 'wake_lock_service.dart';
 
 class BackgroundService {
   static final FlutterBackgroundService _service = FlutterBackgroundService();
@@ -29,9 +30,7 @@ class BackgroundService {
             description: 'Pastikan laporan baru selalu terkirim meskipun aplikasi ditutup',
             importance: Importance.high,
           ),
-        );
-
-    // Configure service
+        );      // Configure service with more aggressive settings for Android battery optimization
     await _service.configure(
       androidConfiguration: AndroidConfiguration(
         onStart: onStart,
@@ -41,6 +40,7 @@ class BackgroundService {
         initialNotificationTitle: 'Petugas Pintar Aktif',
         initialNotificationContent: 'Memantau laporan baru...',
         notificationChannelId: 'petugas_pintar_background',
+        autoStartOnBoot: true,
       ),
       iosConfiguration: IosConfiguration(
         autoStart: true,
@@ -64,7 +64,17 @@ class BackgroundService {
   static Future<void> onStart(ServiceInstance service) async {
     DartPluginRegistrant.ensureInitialized();
 
+    // Enable wakelock to keep CPU active
+    try {
+      await WakeLockService.enableWakeLock();
+      developer.log('WakeLock enabled in background service', name: 'BackgroundService');
+    } catch (e) {
+      developer.log('Failed to enable WakeLock in background: $e', name: 'BackgroundService');
+    }
+
     // For Android - set as foreground service with notification
+    // Note: Foreground service type is now set in AndroidManifest.xml
+    // with android:foregroundServiceType="dataSync|connectedDevice"
     if (service is AndroidServiceInstance) {
       service.setAsForegroundService();
       service.setForegroundNotificationInfo(
@@ -80,7 +90,7 @@ class BackgroundService {
     IO.Socket? socket;
     bool isConnected = false;
     
-    // Function to connect/reconnect socket
+    // Function to connect/reconnect socket with more robustness
     void connectSocket() {
       try {
         // Disconnect previous connection if exists
@@ -93,22 +103,23 @@ class BackgroundService {
           }
         }
         
-        // Create fresh socket with optimized settings
+        // Create fresh socket with extremely aggressive settings to stay alive
         developer.log('Connecting to socket from background service: $serverUrl', name: 'BackgroundService');
         socket = IO.io(serverUrl, <String, dynamic>{
-          'transports': ['websocket'],
+          'transports': ['websocket', 'polling'], // Try both transports
           'autoConnect': true,
           'reconnection': true,
-          'reconnectionDelay': 1000,
-          'reconnectionDelayMax': 5000,
-          'reconnectionAttempts': 99999,
-          'forceNew': true,
-          'timeout': 20000,
-          'pingTimeout': 30000,
-          'pingInterval': 15000,
+          'reconnectionDelay': 500,  // Faster reconnection
+          'reconnectionDelayMax': 3000, // Lower max delay
+          'reconnectionAttempts': 999999, // Keep trying forever
+          'forceNew': true, 
+          'timeout': 30000, // Longer timeout
+          'pingTimeout': 60000, // Much longer ping timeout
+          'pingInterval': 10000, // More frequent pings
           'path': '/socket.io',
           'extraHeaders': {
             'Connection': 'keep-alive',
+            'Keep-Alive': 'timeout=60, max=1000' // More aggressive keep-alive
           },
           'nsp': '/iot'  // Connect to IoT namespace
         });
@@ -210,10 +221,27 @@ class BackgroundService {
     // Initial connection
     connectSocket();
     
-    // Periodic connection check
-    Timer.periodic(Duration(seconds: 30), (timer) {
+    // More frequent connection check to keep socket alive (every 15 seconds)
+    Timer.periodic(Duration(seconds: 15), (timer) {
       if (!isConnected) {
         developer.log('Socket not connected in periodic check, reconnecting...', name: 'BackgroundService');
+        connectSocket();
+      } else if (socket != null) {
+        // Send ping to keep connection alive
+        try {
+          socket!.emit('ping', {'timestamp': DateTime.now().millisecondsSinceEpoch});
+          developer.log('Sent keep-alive ping from background service', name: 'BackgroundService');
+        } catch (e) {
+          developer.log('Error sending ping: $e', name: 'BackgroundService');
+          connectSocket(); // Reconnect on error
+        }
+      }
+    });
+    
+    // Standard periodic check (every 30 seconds)
+    Timer.periodic(Duration(seconds: 30), (timer) {
+      if (!isConnected) {
+        developer.log('Socket not connected in 30s periodic check, reconnecting...', name: 'BackgroundService');
         connectSocket();
       } else {
         // Send ping to verify connection

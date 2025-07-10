@@ -3,7 +3,9 @@ import 'package:flutter/foundation.dart';
 import 'package:socket_io_client/socket_io_client.dart' as IO;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:developer' as developer;
+import 'dart:async';
 import '../models/report.dart';
+import '../utils/socket_helper.dart';
 
 class SocketService extends ChangeNotifier {
   final String baseUrl;
@@ -11,6 +13,8 @@ class SocketService extends ChangeNotifier {
   bool _connected = false;
   // Add a stream controller to notify listeners of new reports
   List<Function(Report)> _reportCallbacks = [];
+  // Add keepalive timer
+  Timer? _keepAliveTimer;
 
   SocketService({required this.baseUrl});
 
@@ -95,6 +99,9 @@ class SocketService extends ChangeNotifier {
       
       // Start a periodic connectivity check to maintain connection
       _startPeriodicConnectionCheck();
+      
+      // Start a keepalive timer to prevent socket from being closed
+      _startKeepAliveTimer();
       
       // Force a join to officer channel after connection
       Future.delayed(Duration(seconds: 1), () {
@@ -286,18 +293,22 @@ class SocketService extends ChangeNotifier {
       
       // Additional debug info
       try {
-        developer.log('Socket connected to namespace: ${_socket!.nsp}', name: 'SocketService');
-        
-        // IMPORTANT: Always join the officer channel on every connection/reconnection
-        _socket!.emit('join_officer_channel', {});
-        developer.log('JOINED OFFICER CHANNEL after connection', name: 'SocketService');
+        if (_socket != null) {
+          developer.log('Socket connected to namespace: ${_socket!.nsp}', name: 'SocketService');
+          
+          // IMPORTANT: Always join the officer channel on every connection/reconnection
+          _socket!.emit('join_officer_channel', {});
+          developer.log('JOINED OFFICER CHANNEL after connection', name: 'SocketService');
+        }
         
         // Setup listeners for events after connection is established
         _setupReportListener();
         
         // After joining, test if we can receive events by sending a ping
-        _socket!.emit('ping_test', {'timestamp': DateTime.now().millisecondsSinceEpoch});
-        developer.log('Sent ping_test to verify connection', name: 'SocketService');
+        if (_socket != null) {
+          _socket!.emit('ping_test', {'timestamp': DateTime.now().millisecondsSinceEpoch});
+          developer.log('Sent ping_test to verify connection', name: 'SocketService');
+        }
         
         // Schedule a verification of connection in 3 seconds
         Future.delayed(Duration(seconds: 3), () {
@@ -357,18 +368,19 @@ class SocketService extends ChangeNotifier {
             // Create a new socket if previous one is problematic
             _socket!.disconnect();
             _socket = IO.io('$baseUrl/iot', <String, dynamic>{
-              'transports': ['websocket'],
+              'transports': ['websocket', 'polling'], // Try both transports
               'autoConnect': true,
               'reconnection': true,
-              'reconnectionDelay': 1000,
-              'reconnectionDelayMax': 5000,
-              'reconnectionAttempts': 99999, // Infinite retry attempts
+              'reconnectionDelay': 500, // Faster reconnection
+              'reconnectionDelayMax': 3000, // Lower max delay
+              'reconnectionAttempts': 999999, // Keep trying forever
               'forceNew': true, // Force a new connection
-              'timeout': 20000, // 20 seconds timeout
-              'pingTimeout': 30000, // Increase ping timeout
-              'pingInterval': 25000, // Increase ping interval
+              'timeout': 30000, // Longer timeout
+              'pingTimeout': 60000, // Much longer ping timeout
+              'pingInterval': 10000, // More frequent pings
               'extraHeaders': {
-                'Connection': 'keep-alive'
+                'Connection': 'keep-alive',
+                'Keep-Alive': 'timeout=60, max=1000' // More aggressive keep-alive
               }
             });
             
@@ -500,6 +512,29 @@ class SocketService extends ChangeNotifier {
       developer.log('Error checking connectivity: $e', name: 'SocketService');
       return true; // Assume we have connectivity on error
     }
+  }
+  
+  // Start a timer to keep the socket connection alive
+  void _startKeepAliveTimer() {
+    // Cancel any existing timer
+    _keepAliveTimer?.cancel();
+    
+    // Create a new timer that sends a ping every 8 seconds
+    _keepAliveTimer = Timer.periodic(Duration(seconds: 8), (_) {
+      if (_connected && _socket != null) {
+        try {
+          // Send a ping with timestamp to server
+          _socket!.emit('ping', {'timestamp': DateTime.now().millisecondsSinceEpoch});
+          developer.log('Sent keepalive ping', name: 'SocketService');
+        } catch (e) {
+          developer.log('Error sending keepalive ping: $e', name: 'SocketService');
+          // Try to reconnect on error
+          if (!_connected) connect();
+        }
+      }
+    });
+    
+    developer.log('Started keepalive timer', name: 'SocketService');
   }
 }
 

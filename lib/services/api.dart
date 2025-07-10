@@ -737,7 +737,10 @@ class ApiService {
             userName: reportJson['reporter_name'] ?? reportJson['name'] ?? 'Tidak diketahui',
             phone: reportJson['phone'],
             jenisLaporan: reportJson['jenis_laporan'],
+            status: reportJson['status'] ?? 'pending', // Make sure to include status
           );
+          
+          developer.log('Report created with status: ${reportJson['status'] ?? 'pending'}', name: 'ApiService');
           
           developer.log('Report detail fetched successfully for ID: $reportId', name: 'ApiService');
           
