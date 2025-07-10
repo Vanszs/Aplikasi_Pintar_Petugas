@@ -1,5 +1,4 @@
 import 'dart:developer' as developer;
-import 'dart:convert';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
@@ -7,7 +6,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../utils/timezone_helper.dart';
 
 // Top-level background message handler
 @pragma('vm:entry-point')
@@ -35,21 +33,14 @@ class FCMService extends ChangeNotifier {
   bool _isInitialized = false;
   String? _fcmToken;
   Function(String)? _onTokenRefresh;
-  bool _notificationsEnabled = true; // Track if notifications should be shown
+  bool _notificationsEnabled = true;
   
   // Enhanced deduplication tracking
   final Map<String, DateTime> _recentFcmNotifications = {};
-  static const Duration _fcmDeduplicationWindow = Duration(seconds: 5);
+  static const Duration _fcmDeduplicationWindow = Duration(seconds: 2);
   
-  // Notification expiry settings - optimized for server TTL
-  static const Duration _notificationExpiryTime = Duration(seconds: 30); // 30 detik sesuai server
-  static const String _timestampKey = 'sent_at';
-  static const String _expiresAtKey = 'expires_at';
-  static const String _sessionIdKey = 'session_id';
-  
-  // Session tracking untuk mencegah notifikasi lama
+  // Session tracking
   String? _currentSessionId;
-  DateTime? _sessionStartTime;
   
   // Getters
   bool get isInitialized => _isInitialized;
@@ -65,72 +56,34 @@ class FCMService extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Check if FCM notification should be shown (enhanced deduplication + session + expiry checking)
-  bool _shouldShowFcmNotification(String notificationKey, Map<String, dynamic> messageData) {
+  // Check if FCM notification should be processed (simplified)
+  bool _shouldProcessFcmMessage(String messageKey, Map<String, dynamic> messageData) {
     if (!_notificationsEnabled) {
-      developer.log('FCM notifications disabled, skipping: $notificationKey', name: 'FCMService');
+      developer.log('FCM notifications disabled, skipping: $messageKey', name: 'FCMService');
       return false;
     }
 
     final now = DateTime.now();
     
-    // 1. Check expiry timestamp (dari server)
-    if (messageData.containsKey(_expiresAtKey)) {
-      try {
-        final expiresAtString = messageData[_expiresAtKey] as String;
-        final expiresAt = int.parse(expiresAtString);
-        final currentTime = now.millisecondsSinceEpoch;
-        
-        if (currentTime > expiresAt) {
-          developer.log('Notification expired (${(currentTime - expiresAt) / 1000} seconds ago), blocking: $notificationKey', name: 'FCMService');
-          return false;
-        }
-        
-        developer.log('Notification expires in ${(expiresAt - currentTime) / 1000} seconds for $notificationKey', name: 'FCMService');
-      } catch (e) {
-        developer.log('Error parsing expires_at for $notificationKey: $e', name: 'FCMService');
-      }
-    }
+    // Clean old entries
+    _recentFcmNotifications.removeWhere((key, time) => 
+      now.difference(time) > _fcmDeduplicationWindow);
     
-    // 2. Check session ID (untuk mencegah notifikasi dari session lama)
-    if (messageData.containsKey(_sessionIdKey) && _currentSessionId != null) {
-      final notificationSessionId = messageData[_sessionIdKey] as String?;
-      if (notificationSessionId != null && notificationSessionId != _currentSessionId) {
-        developer.log('Notification from old session ($notificationSessionId vs $_currentSessionId), blocking: $notificationKey', name: 'FCMService');
+    // Check for recent duplicates
+    if (_recentFcmNotifications.containsKey(messageKey)) {
+      final lastProcessed = _recentFcmNotifications[messageKey]!;
+      final timeSinceLastProcessed = now.difference(lastProcessed);
+      developer.log('Duplicate FCM message detected: $messageKey (last processed ${timeSinceLastProcessed.inSeconds}s ago)', name: 'FCMService');
+      
+      if (timeSinceLastProcessed.inSeconds < 2) {
+        developer.log('Blocking duplicate message: $messageKey', name: 'FCMService');
         return false;
       }
     }
     
-    // 3. Check if notification is too old (fallback timestamp checking)
-    if (messageData.containsKey(_timestampKey)) {
-      try {
-        final sentAtString = messageData[_timestampKey] as String;
-        
-        // Use TimezoneHelper to check if notification is too old
-        if (TimezoneHelper.isTimestampTooOld(sentAtString, _notificationExpiryTime)) {
-          final sentAt = DateTime.parse(sentAtString);
-          final now = TimezoneHelper.getNowJakarta();
-          final timeDifference = now.difference(sentAt);
-          developer.log('Notification too old (${timeDifference.inSeconds} seconds), blocking: $notificationKey', name: 'FCMService');
-          return false;
-        }
-      } catch (e) {
-        developer.log('Error parsing timestamp for $notificationKey: $e', name: 'FCMService');
-      }
-    }
-    
-    // 4. Clean old entries
-    _recentFcmNotifications.removeWhere((key, time) => 
-      now.difference(time) > _fcmDeduplicationWindow);
-    
-    // 5. Check if this notification was recently shown
-    if (_recentFcmNotifications.containsKey(notificationKey)) {
-      developer.log('Duplicate FCM notification blocked: $notificationKey', name: 'FCMService');
-      return false;
-    }
-    
-    // 6. Mark as shown
-    _recentFcmNotifications[notificationKey] = now;
+    // Mark as processed
+    _recentFcmNotifications[messageKey] = now;
+    developer.log('FCM message approved for processing: $messageKey', name: 'FCMService');
     return true;
   }
 
@@ -155,6 +108,8 @@ class FCMService extends ChangeNotifier {
 
   Future<void> initializeFCM() async {
     try {
+      developer.log('=== INITIALIZING FCM SERVICE ===', name: 'FCMService');
+      
       // Request permission for notifications
       NotificationSettings settings = await _firebaseMessaging.requestPermission(
         alert: true,
@@ -166,6 +121,8 @@ class FCMService extends ChangeNotifier {
         sound: true,
       );
 
+      developer.log('FCM Permission Status: ${settings.authorizationStatus}', name: 'FCMService');
+
       if (settings.authorizationStatus == AuthorizationStatus.authorized) {
         developer.log('FCM: User granted permission', name: 'FCMService');
       } else if (settings.authorizationStatus == AuthorizationStatus.provisional) {
@@ -175,14 +132,21 @@ class FCMService extends ChangeNotifier {
         return;
       }
 
-      // Initialize local notifications
-      await _initializeLocalNotifications();
+      // Set FCM presentation options for foreground notifications
+      await _firebaseMessaging.setForegroundNotificationPresentationOptions(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+
+      // Initialize backup local notifications for foreground messages
+      await _initializeBackupNotifications();
 
       // Get the token
       _fcmToken = await _firebaseMessaging.getToken();
       developer.log('FCM Token: $_fcmToken', name: 'FCMService');
       
-      // Generate new session untuk mencegah notifikasi lama
+      // Generate new session
       _generateNewSession();
       
       // Save token to SharedPreferences
@@ -198,7 +162,7 @@ class FCMService extends ChangeNotifier {
         _saveTokenToPreferences(fcmToken);
         notifyListeners();
         
-        // Notify listeners about token change (this will be used by auth provider)
+        // Notify listeners about token change
         _onTokenRefresh?.call(fcmToken);
       });
 
@@ -211,50 +175,17 @@ class FCMService extends ChangeNotifier {
       // Check for any messages received while app was terminated
       RemoteMessage? initialMessage = await FirebaseMessaging.instance.getInitialMessage();
       if (initialMessage != null) {
+        developer.log('Initial message found: ${initialMessage.messageId}', name: 'FCMService');
         _handleMessageOpenedApp(initialMessage);
       }
 
       _isInitialized = true;
       notifyListeners();
       
-      developer.log('FCM Service initialized successfully', name: 'FCMService');
+      developer.log('=== FCM SERVICE INITIALIZED SUCCESSFULLY ===', name: 'FCMService');
     } catch (e) {
       developer.log('Error initializing FCM: $e', name: 'FCMService');
     }
-  }
-
-  Future<void> _initializeLocalNotifications() async {
-    const AndroidInitializationSettings initializationSettingsAndroid =
-        AndroidInitializationSettings('@mipmap/launcher_icon');
-
-    const DarwinInitializationSettings initializationSettingsIOS =
-        DarwinInitializationSettings(
-      requestAlertPermission: false,
-      requestBadgePermission: false,
-      requestSoundPermission: false,
-    );
-
-    const InitializationSettings initializationSettings = InitializationSettings(
-      android: initializationSettingsAndroid,
-      iOS: initializationSettingsIOS,
-    );
-
-    await _localNotifications.initialize(
-      initializationSettings,
-      onDidReceiveNotificationResponse: _onNotificationTapped,
-    );
-
-    // Create notification channel for Android
-    const AndroidNotificationChannel channel = AndroidNotificationChannel(
-      'fcm_default_channel', // id
-      'FCM Notifications', // title
-      description: 'Firebase Cloud Messaging notifications',
-      importance: Importance.high,
-    );
-
-    await _localNotifications
-        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
-        ?.createNotificationChannel(channel);
   }
 
   Future<void> _saveTokenToPreferences(String token) async {
@@ -262,27 +193,53 @@ class FCMService extends ChangeNotifier {
     await prefs.setString('fcm_token', token);
   }
 
-  void _onNotificationTapped(NotificationResponse notificationResponse) {
-    developer.log('Notification tapped: ${notificationResponse.payload}', name: 'FCMService');
-    // Handle notification tap here
-    // You can navigate to specific screens based on the payload
-  }
-
-  // Handle FCM foreground messages and show local notification
-  void _handleForegroundMessage(RemoteMessage message) {
-    developer.log('Got a message whilst in the foreground!', name: 'FCMService');
+  // Handle FCM foreground messages - Ensure notifications show when app is open
+  void _handleForegroundMessage(RemoteMessage message) async {
+    developer.log('=== FCM FOREGROUND MESSAGE RECEIVED ===', name: 'FCMService');
+    developer.log('Message ID: ${message.messageId}', name: 'FCMService');
     developer.log('Message data: ${message.data}', name: 'FCMService');
+    developer.log('Notifications enabled: $_notificationsEnabled', name: 'FCMService');
 
-    if (message.notification != null) {
-      developer.log('Message also contained a notification: ${message.notification}', name: 'FCMService');
-      
-      // Show local notification for better customization
-      _showLocalNotification(message);
+    // Create message key for deduplication
+    String messageKey = 'fcm_${message.messageId ?? DateTime.now().millisecondsSinceEpoch}';
+    
+    // Use data to create more specific key if available
+    if (message.data['type'] == 'new_report' && message.data['reportId'] != null) {
+      messageKey = 'fcm_new_report_${message.data['reportId']}';
+    } else if (message.data['type'] == 'status_update' && message.data['reportId'] != null) {
+      messageKey = 'fcm_status_update_${message.data['reportId']}_${message.data['status'] ?? 'unknown'}';
     }
+
+    // Check if we should process this message
+    if (!_shouldProcessFcmMessage(messageKey, message.data)) {
+      developer.log('FCM message processing skipped due to deduplication', name: 'FCMService');
+      return;
+    }
+
+    // Log notification details
+    if (message.notification != null) {
+      developer.log('Message notification title: ${message.notification?.title}', name: 'FCMService');
+      developer.log('Message notification body: ${message.notification?.body}', name: 'FCMService');
+    } else {
+      developer.log('No notification payload in message', name: 'FCMService');
+    }
+    
+    // Show backup notification for foreground messages to ensure they appear
+    // This ensures notifications show even if FCM foreground presentation fails
+    await _showBackupNotification(message);
+    
+    // Process additional actions (like updating app state, triggering UI updates, etc.)
+    _processMessageData(message);
+    
+    // For foreground messages, the system should automatically show the notification
+    // due to setForegroundNotificationPresentationOptions, but let's also notify listeners
+    notifyListeners();
+    
+    developer.log('=== END FCM FOREGROUND MESSAGE ===', name: 'FCMService');
   }
 
   void _handleMessageOpenedApp(RemoteMessage message) {
-    developer.log('A new onMessageOpenedApp event was published!', name: 'FCMService');
+    developer.log('FCM message opened app!', name: 'FCMService');
     developer.log('Message data: ${message.data}', name: 'FCMService');
     
     // Handle navigation here based on message data
@@ -291,70 +248,123 @@ class FCMService extends ChangeNotifier {
 
   static Future<void> _handleBackgroundMessage(RemoteMessage message) async {
     developer.log('Handling background message: ${message.messageId}', name: 'FCMService');
+    developer.log('Background message data: ${message.data}', name: 'FCMService');
     
-    // You can process the message here
-    // Note: You can't show UI or navigate in background handler
-    // But you can show local notifications, save to database, etc.
+    // FCM automatically shows notification in background
+    // You can process additional data here if needed
   }
 
-  Future<void> _showLocalNotification(RemoteMessage message) async {
-    RemoteNotification? notification = message.notification;
+  // Initialize backup local notifications for foreground messages only
+  Future<void> _initializeBackupNotifications() async {
+    try {
+      const AndroidInitializationSettings initializationSettingsAndroid =
+          AndroidInitializationSettings('@mipmap/launcher_icon');
 
-    if (notification != null && !kIsWeb && _notificationsEnabled) {
-      // Use data from FCM message to determine notification type
+      const DarwinInitializationSettings initializationSettingsIOS =
+          DarwinInitializationSettings(
+        requestAlertPermission: false,
+        requestBadgePermission: false,
+        requestSoundPermission: false,
+      );
+
+      const InitializationSettings initializationSettings = InitializationSettings(
+        android: initializationSettingsAndroid,
+        iOS: initializationSettingsIOS,
+      );
+
+      await _localNotifications.initialize(initializationSettings);
+
+      // Create notification channel for Android
+      const AndroidNotificationChannel channel = AndroidNotificationChannel(
+        'fcm_foreground_channel',
+        'FCM Foreground Notifications',
+        description: 'Backup notifications for when app is open',
+        importance: Importance.high,
+      );
+
+      await _localNotifications
+          .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+          ?.createNotificationChannel(channel);
+          
+      developer.log('Backup local notifications initialized', name: 'FCMService');
+    } catch (e) {
+      developer.log('Error initializing backup notifications: $e', name: 'FCMService');
+    }
+  }
+
+  // Show backup local notification for foreground messages
+  Future<void> _showBackupNotification(RemoteMessage message) async {
+    if (!_notificationsEnabled || kIsWeb) return;
+    
+    try {
+      final notification = message.notification;
       final data = message.data;
-      String channelId = 'fcm_default_channel';
-      String channelName = 'FCM Notifications';
       
-      // Customize channel based on notification type
-      if (data['type'] == 'new_report') {
-        channelId = 'new_reports';
-        channelName = 'Laporan Baru';
-      } else if (data['type'] == 'status_update') {
-        channelId = 'status_updates';
-        channelName = 'Status Laporan';
+      String title = notification?.title ?? 'Laporan Baru';
+      String body = notification?.body ?? 'Ada laporan baru untuk ditangani';
+      
+      // Create notification based on data if no notification payload
+      if (notification == null && data.isNotEmpty) {
+        if (data['type'] == 'new_report') {
+          title = 'Laporan Baru';
+          body = 'Ada laporan ${data['jenis_laporan'] ?? 'baru'} yang perlu ditangani';
+        } else if (data['type'] == 'status_update') {
+          title = 'Update Status Laporan';
+          body = 'Status laporan telah diperbarui';
+        }
       }
 
-      // Create unique key for deduplication based on message data
-      String notificationKey = 'fcm_general_${notification.hashCode}';
-      
-      // Create more specific key based on notification type
-      if (data['type'] == 'new_report' && data['reportId'] != null) {
-        notificationKey = 'fcm_new_report_${data['reportId']}';
-      } else if (data['type'] == 'status_update' && data['reportId'] != null) {
-        notificationKey = 'fcm_status_update_${data['reportId']}_${data['status'] ?? 'unknown'}';
-      }
-
-      // Check deduplication, expiry, and session before showing notification
-      if (_shouldShowFcmNotification(notificationKey, data)) {
-        await _localNotifications.show(
-          notification.hashCode,
-          notification.title,
-          notification.body,
-          NotificationDetails(
-            android: AndroidNotificationDetails(
-              channelId,
-              channelName,
-              channelDescription: 'Firebase Cloud Messaging notifications',
-              icon: '@mipmap/launcher_icon',
-              importance: Importance.high,
-              priority: Priority.high,
-              color: const Color(0xFF4F46E5),
-              enableLights: true,
-              enableVibration: false,
-              playSound: true,
-            ),
-            iOS: const DarwinNotificationDetails(
-              presentAlert: true,
-              presentBadge: true,
-              presentSound: true,
-            ),
+      await _localNotifications.show(
+        message.hashCode,
+        title,
+        body,
+        const NotificationDetails(
+          android: AndroidNotificationDetails(
+            'fcm_foreground_channel',
+            'FCM Foreground Notifications',
+            channelDescription: 'Backup notifications for when app is open',
+            icon: '@mipmap/launcher_icon',
+            importance: Importance.high,
+            priority: Priority.high,
+            color: Color(0xFF4F46E5),
+            enableLights: true,
+            enableVibration: true,
+            playSound: true,
           ),
-          payload: jsonEncode(message.data),
-        );
+          iOS: DarwinNotificationDetails(
+            presentAlert: true,
+            presentBadge: true,
+            presentSound: true,
+          ),
+        ),
+      );
+      
+      developer.log('Backup notification shown for foreground message', name: 'FCMService');
+    } catch (e) {
+      developer.log('Error showing backup notification: $e', name: 'FCMService');
+    }
+  }
+
+  // Process message data for app state updates
+  void _processMessageData(RemoteMessage message) {
+    final data = message.data;
+    
+    if (data.isNotEmpty) {
+      developer.log('Processing message data: $data', name: 'FCMService');
+      
+      // Here you can trigger app state updates based on message type
+      switch (data['type']) {
+        case 'new_report':
+          developer.log('New report notification received: ${data['reportId']}', name: 'FCMService');
+          // You can emit events here to update UI
+          break;
+        case 'status_update':
+          developer.log('Status update notification received: ${data['reportId']}', name: 'FCMService');
+          // You can emit events here to update UI
+          break;
+        default:
+          developer.log('Unknown notification type: ${data['type']}', name: 'FCMService');
       }
-    } else if (!_notificationsEnabled) {
-      developer.log('FCM notification skipped - notifications disabled', name: 'FCMService');
     }
   }
 
@@ -434,7 +444,6 @@ class FCMService extends ChangeNotifier {
   // Method to generate new session when FCM token is registered
   void _generateNewSession() {
     _currentSessionId = 'session_${DateTime.now().millisecondsSinceEpoch}_${DateTime.now().microsecond}';
-    _sessionStartTime = DateTime.now();
     developer.log('Generated new FCM session: $_currentSessionId', name: 'FCMService');
   }
 }
