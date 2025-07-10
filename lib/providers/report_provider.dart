@@ -73,6 +73,27 @@ class ReportNotifier extends StateNotifier<ReportState> {
         // Reload reports on reconnection
         loadAllReports();
       });
+      
+      // Listen for report status updates
+      _socketService.on('report_status_update', (data) {
+        try {
+          developer.log('Received report_status_update: $data', name: 'ReportProvider');
+          
+          // Extract report ID and status from event
+          final reportId = data['report_id'];
+          final status = data['status'];
+          
+          if (reportId != null && status != null) {
+            // Update the report in state
+            _updateReportStatus(reportId, status, data['report']);
+            
+            // Show notification for status update
+            _notificationService.showStatusUpdateNotification(reportId, status);
+          }
+        } catch (e) {
+          developer.log('Error handling report status update: $e', name: 'ReportProvider');
+        }
+      });
     } catch (e) {
       developer.log('Error setting up socket listeners: $e', name: 'ReportProvider');
       
@@ -392,6 +413,81 @@ class ReportNotifier extends StateNotifier<ReportState> {
       );
       developer.log('Error sending officer report: $e', name: 'ReportProvider');
       return false;
+    }
+  }
+
+  // Update report status in state
+  void _updateReportStatus(int reportId, String newStatus, dynamic reportData) {
+    try {
+      // Find the report in our current state
+      final reports = state.reports;
+      final reportIndex = reports.indexWhere((r) => r.id == reportId);
+      
+      // If found in list, update status
+      if (reportIndex >= 0) {
+        final oldReport = reports[reportIndex];
+        
+        // Create updated report with new status
+        Report updatedReport;
+        
+        // If full report data is available, use it
+        if (reportData != null) {
+          try {
+            updatedReport = Report.fromJson(reportData);
+            developer.log('Updated report from full data: $reportData', name: 'ReportProvider');
+          } catch (e) {
+            // Fallback to just updating the status
+            updatedReport = Report(
+              id: oldReport.id,
+              userId: oldReport.userId,
+              address: oldReport.address,
+              createdAt: oldReport.createdAt,
+              userName: oldReport.userName,
+              phone: oldReport.phone,
+              jenisLaporan: oldReport.jenisLaporan,
+              status: newStatus,
+            );
+            developer.log('Error parsing report data, using fallback: $e', name: 'ReportProvider');
+          }
+        } else {
+          // Just update the status
+          updatedReport = Report(
+            id: oldReport.id,
+            userId: oldReport.userId,
+            address: oldReport.address,
+            createdAt: oldReport.createdAt,
+            userName: oldReport.userName,
+            phone: oldReport.phone,
+            jenisLaporan: oldReport.jenisLaporan,
+            status: newStatus,
+          );
+        }
+        
+        // Create new list with updated report
+        final updatedReports = List<Report>.from(reports);
+        updatedReports[reportIndex] = updatedReport;
+        
+        // Update state
+        state = state.copyWith(
+          reports: updatedReports,
+          lastUpdated: DateTime.now(),
+        );
+        
+        // If this is the currently selected report, update that too
+        if (state.selectedReport != null && state.selectedReport!.id == reportId) {
+          state = state.copyWith(
+            selectedReport: updatedReport,
+          );
+          developer.log('Updated selected report status to: $newStatus', name: 'ReportProvider');
+        }
+        
+        developer.log('Updated report #$reportId status to: $newStatus', name: 'ReportProvider');
+      } else {
+        developer.log('Report #$reportId not found in state, refreshing all reports', name: 'ReportProvider');
+        loadAllReports(); // Refresh all reports if we can't find the one to update
+      }
+    } catch (e) {
+      developer.log('Error updating report status: $e', name: 'ReportProvider');
     }
   }
 }

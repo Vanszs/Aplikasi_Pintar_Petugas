@@ -73,7 +73,7 @@ class SocketService extends ChangeNotifier {
       // Create fresh socket with optimized settings for reliability
       // Connect directly to the IoT namespace as configured on the server
       developer.log('Creating socket connection to $baseUrl/iot namespace', name: 'SocketService');
-      _socket = IO.io(baseUrl, <String, dynamic>{
+      _socket = IO.io('$baseUrl/iot', <String, dynamic>{
         'transports': ['websocket', 'polling'], // Allow fallback to polling if websocket fails
         'autoConnect': true,
         'reconnection': true,
@@ -84,13 +84,11 @@ class SocketService extends ChangeNotifier {
         'timeout': 20000, // Reduced timeout for faster failure detection
         'pingTimeout': 30000, // Ping timeout
         'pingInterval': 10000, // More frequent ping interval
-        'path': '/socket.io', // Default socket.io path
         'extraHeaders': {
           'Connection': 'keep-alive',
           'Accept': 'application/json',
           'Cache-Control': 'no-cache'
         },
-        'nsp': '/iot' // Important: Connect to the IoT namespace
       });
 
       _setupListeners();
@@ -289,11 +287,28 @@ class SocketService extends ChangeNotifier {
       // Additional debug info
       try {
         developer.log('Socket connected to namespace: ${_socket!.nsp}', name: 'SocketService');
-        // Emit a test event to verify connection is working
+        
+        // IMPORTANT: Always join the officer channel on every connection/reconnection
+        _socket!.emit('join_officer_channel', {});
+        developer.log('JOINED OFFICER CHANNEL after connection', name: 'SocketService');
+        
+        // Setup listeners for events after connection is established
+        _setupReportListener();
+        
+        // After joining, test if we can receive events by sending a ping
         _socket!.emit('ping_test', {'timestamp': DateTime.now().millisecondsSinceEpoch});
         developer.log('Sent ping_test to verify connection', name: 'SocketService');
+        
+        // Schedule a verification of connection in 3 seconds
+        Future.delayed(Duration(seconds: 3), () {
+          if (_connected && _socket != null) {
+            // Re-emit join to ensure we're in the channel
+            _socket!.emit('join_officer_channel', {});
+            developer.log('Sent follow-up join_officer_channel to ensure connection', name: 'SocketService');
+          }
+        });
       } catch (e) {
-        developer.log('Error getting additional socket info: $e', name: 'SocketService');
+        developer.log('Error in connection handler: $e', name: 'SocketService');
       }
       
       notifyListeners();

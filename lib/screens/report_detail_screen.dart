@@ -361,11 +361,11 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
                             ),
                           ),
                           Text(
-                            'Terkirim',
+                            report.getStatusDisplay(),
                             style: GoogleFonts.inter(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
-                              color: Colors.green,
+                              color: report.getStatusColor(),
                             ),
                           ),
                         ],

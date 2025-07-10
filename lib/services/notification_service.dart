@@ -13,21 +13,30 @@ class NotificationService extends ChangeNotifier {
   }
 
   Future<void> _createNotificationChannel() async {
-    const AndroidNotificationChannel channel = AndroidNotificationChannel(
+    const AndroidNotificationChannel newReportsChannel = AndroidNotificationChannel(
       'new_reports',
       'Laporan Baru',
       description: 'Notifikasi saat ada laporan baru',
       importance: Importance.max,
     );
 
+    const AndroidNotificationChannel statusUpdatesChannel = AndroidNotificationChannel(
+      'status_updates',
+      'Status Laporan',
+      description: 'Notifikasi saat status laporan berubah',
+      importance: Importance.high,
+    );
+
     final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
         FlutterLocalNotificationsPlugin();
     
-    await flutterLocalNotificationsPlugin
-        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
-        ?.createNotificationChannel(channel);
+    final androidPlugin = flutterLocalNotificationsPlugin
+        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
     
-    developer.log('Notification channel created', name: 'NotificationService');
+    await androidPlugin?.createNotificationChannel(newReportsChannel);
+    await androidPlugin?.createNotificationChannel(statusUpdatesChannel);
+    
+    developer.log('Notification channels created', name: 'NotificationService');
   }
 
   Future<void> _initializeNotifications() async {
@@ -156,6 +165,81 @@ class NotificationService extends ChangeNotifier {
       developer.log('New report notification displayed for ID: ${report.id}', name: 'NotificationService');
     } catch (e) {
       developer.log('Error showing notification: $e', name: 'NotificationService');
+    }
+  }
+
+  Future<void> showStatusUpdateNotification(int reportId, String status) async {
+    // Ensure initialization is complete before showing notification
+    if (!_isInitialized) {
+      await _initializeNotifications();
+    }
+
+    try {
+      // Map status to Indonesian display name
+      String statusDisplay = '';
+      Color statusColor = const Color(0xFF6366F1);
+      
+      switch (status.toLowerCase()) {
+        case 'pending':
+          statusDisplay = 'Menunggu';
+          statusColor = const Color(0xFFF59E0B);
+          break;
+        case 'processing':
+          statusDisplay = 'Sedang Diproses';
+          statusColor = const Color(0xFF3B82F6);
+          break;
+        case 'completed':
+          statusDisplay = 'Selesai';
+          statusColor = const Color(0xFF10B981);
+          break;
+        case 'rejected':
+          statusDisplay = 'Ditolak';
+          statusColor = const Color(0xFFEF4444);
+          break;
+        default:
+          statusDisplay = 'Status Berubah';
+          break;
+      }
+
+      final AndroidNotificationDetails androidNotificationDetails = AndroidNotificationDetails(
+        'status_updates',
+        'Status Laporan',
+        channelDescription: 'Notifikasi saat status laporan berubah',
+        importance: Importance.high,
+        priority: Priority.high,
+        color: statusColor,
+        enableLights: true,
+        ledColor: statusColor,
+        ledOnMs: 1000,
+        ledOffMs: 500,
+        playSound: true,
+        enableVibration: false, // Disable vibration as requested
+      );
+
+      const DarwinNotificationDetails iOSNotificationDetails = DarwinNotificationDetails(
+        presentAlert: true,
+        presentBadge: true,
+        presentSound: true,
+      );
+
+      final NotificationDetails notificationDetails = NotificationDetails(
+        android: androidNotificationDetails,
+        iOS: iOSNotificationDetails,
+      );
+
+      // Use a different ID for status updates to avoid overwriting report notifications
+      final notificationId = reportId + 10000; // Offset to avoid collision
+      
+      await _flutterLocalNotificationsPlugin.show(
+        notificationId,
+        'Status Laporan Diperbarui',
+        'Laporan #$reportId status sekarang: $statusDisplay',
+        notificationDetails,
+      );
+      
+      developer.log('Status update notification shown for report #$reportId: $status', name: 'NotificationService');
+    } catch (e) {
+      developer.log('Error showing status update notification: $e', name: 'NotificationService');
     }
   }
 }

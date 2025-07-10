@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -20,23 +21,75 @@ class HomeScreen extends ConsumerStatefulWidget {
   ConsumerState<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends ConsumerState<HomeScreen> {
+class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObserver {
+  Timer? _connectionCheckTimer;
+
   @override
   void initState() {
     super.initState();
+    // Add observer for app lifecycle changes
+    WidgetsBinding.instance.addObserver(this);
+    
     // Jangan update user di initState, hanya refresh laporan/statistik saja
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
+      
+      // First ensure socket is connected for real-time updates
+      _ensureSocketConnection();
+      
       // Cek koneksi internet
       final connectivityService = ref.read(connectivityServiceProvider);
       await connectivityService.checkInternetConnection();
       if (!mounted) return;
+      
+      // Load initial data
       await Future.wait([
         ref.read(reportProvider.notifier).loadUserReports(),
         ref.read(reportProvider.notifier).loadUserStats(),
         ref.read(reportProvider.notifier).loadGlobalStats(),
       ]);
+      
+      // Start a periodic connection check
+      _connectionCheckTimer = Timer.periodic(Duration(seconds: 30), (timer) {
+        if (mounted) {
+          _ensureSocketConnection();
+        }
+      });
     });
+  }
+  
+  @override
+  void dispose() {
+    // Remove observer and cancel timer when disposed
+    WidgetsBinding.instance.removeObserver(this);
+    _connectionCheckTimer?.cancel();
+    super.dispose();
+  }
+  
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // When app resumes from background, ensure we have fresh data
+    if (state == AppLifecycleState.resumed) {
+      if (mounted) {
+        _ensureSocketConnection();
+        ref.read(reportProvider.notifier).retryLoadReports();
+      }
+    }
+  }
+  
+  // Ensure socket is connected for real-time updates
+  void _ensureSocketConnection() {
+    try {
+      final socketService = ref.read(socketServiceProvider);
+      if (!socketService.isConnected) {
+        debugPrint('HomeScreen: Socket not connected, attempting reconnection');
+        socketService.connect();
+      } else {
+        debugPrint('HomeScreen: Socket connection verified');
+      }
+    } catch (e) {
+      debugPrint('HomeScreen: Error checking socket connection: $e');
+    }
   }
 
   Future<void> _refreshAllData() async {
