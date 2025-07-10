@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'dart:developer' as developer;
 import '../services/notification_service.dart';
+import '../services/fcm_service.dart';
 
 /// Provider for notification permission status
 final notificationPermissionProvider = StateProvider<bool>((ref) => false);
@@ -43,13 +45,43 @@ class _NotificationPermissionHandlerState extends ConsumerState<NotificationPerm
       // Get the notification service
       final notificationService = ref.read(notificationServiceProvider);
       
-      // Check current permission status
-      final hasPermission = await notificationService.checkNotificationPermissions();
+      // Check current local notification permission status
+      final hasLocalPermission = await notificationService.checkNotificationPermissions();
+      
+      // Check FCM permission status
+      bool hasFCMPermission = false;
+      try {
+        final fcmService = ref.read(fcmServiceProvider);
+        
+        // Check FCM permission status
+        NotificationSettings settings = await FirebaseMessaging.instance.getNotificationSettings();
+        
+        if (settings.authorizationStatus == AuthorizationStatus.authorized ||
+            settings.authorizationStatus == AuthorizationStatus.provisional) {
+          hasFCMPermission = true;
+          developer.log('FCM permission already granted', name: 'NotificationPermissionHandler');
+          
+          // If FCM permission already exists but service not initialized, initialize it
+          if (!fcmService.isInitialized) {
+            await fcmService.initializeFCM();
+            await fcmService.subscribeToTopic('petugas_notifications');
+          }
+        } else {
+          hasFCMPermission = false;
+          developer.log('FCM permission not granted', name: 'NotificationPermissionHandler');
+        }
+      } catch (e) {
+        developer.log('Error checking FCM permission: $e', name: 'NotificationPermissionHandler');
+        hasFCMPermission = false;
+      }
+      
+      // Final permission status (both local and FCM should be granted)
+      final finalPermission = hasLocalPermission && hasFCMPermission;
       
       // Update the provider with current status
-      ref.read(notificationPermissionProvider.notifier).state = hasPermission;
+      ref.read(notificationPermissionProvider.notifier).state = finalPermission;
       
-      if (!hasAskedBefore && !hasPermission) {
+      if (!hasAskedBefore && !finalPermission) {
         // If we haven't asked before and don't have permission, show the dialog after a slight delay
         // This gives the app time to fully initialize
         Future.delayed(const Duration(seconds: 1), () {
@@ -149,12 +181,40 @@ class _NotificationPermissionHandlerState extends ConsumerState<NotificationPerm
           ),
           const SizedBox(height: 20),
           const Text(
-            'Dapatkan notifikasi real-time saat ada laporan baru dari warga yang memerlukan penanganan segera.',
+            'Dapatkan notifikasi Firebase Cloud Messaging (FCM) real-time saat ada laporan baru dari warga yang memerlukan penanganan segera.',
             style: TextStyle(
               fontSize: 14,
               height: 1.5,
             ),
             textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFF4F46E5).withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Row(
+              children: [
+                Icon(
+                  Icons.cloud_queue,
+                  color: Color(0xFF4F46E5),
+                  size: 20,
+                ),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Menggunakan Firebase Cloud Messaging untuk notifikasi yang lebih andal',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Color(0xFF4F46E5),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 16),
           Container(
@@ -217,24 +277,73 @@ class _NotificationPermissionHandlerState extends ConsumerState<NotificationPerm
           onPressed: () async {
             Navigator.of(context).pop();
             
-            // Request notification permission
+            // Request notification permission dari local notifications service
             final notificationService = ref.read(notificationServiceProvider);
-            final hasPermission = await notificationService.requestNotificationPermissions();
+            final hasLocalPermission = await notificationService.requestNotificationPermissions();
+            
+            // Request FCM permission
+            bool hasFCMPermission = false;
+            try {
+              final fcmService = ref.read(fcmServiceProvider);
+              
+              // Request FCM permission (untuk Android 13+/iOS)
+              FirebaseMessaging messaging = FirebaseMessaging.instance;
+              NotificationSettings settings = await messaging.requestPermission(
+                alert: true,
+                badge: true,
+                sound: true,
+                announcement: false,
+                carPlay: false,
+                criticalAlert: false,
+                provisional: false,
+              );
+              
+              // Check if FCM permission granted
+              if (settings.authorizationStatus == AuthorizationStatus.authorized) {
+                developer.log('FCM: User granted permission', name: 'NotificationPermissionHandler');
+                hasFCMPermission = true;
+                
+                // Initialize FCM service if permission granted
+                await fcmService.initializeFCM();
+                
+                // Subscribe to general notifications topic
+                await fcmService.subscribeToTopic('petugas_notifications');
+                
+              } else if (settings.authorizationStatus == AuthorizationStatus.provisional) {
+                developer.log('FCM: User granted provisional permission', name: 'NotificationPermissionHandler');
+                hasFCMPermission = true;
+                
+                // Initialize FCM service for provisional permission
+                await fcmService.initializeFCM();
+                await fcmService.subscribeToTopic('petugas_notifications');
+                
+              } else {
+                developer.log('FCM: User declined or has not accepted permission', name: 'NotificationPermissionHandler');
+                hasFCMPermission = false;
+              }
+              
+            } catch (e) {
+              developer.log('Error requesting FCM permission: $e', name: 'NotificationPermissionHandler');
+              hasFCMPermission = false;
+            }
+            
+            // Final permission status (both local and FCM should be granted)
+            final finalPermission = hasLocalPermission && hasFCMPermission;
             
             // Also request battery optimization whitelist for better background performance
-            if (hasPermission) {
+            if (finalPermission) {
               await _requestBatteryOptimizationWhitelist();
             }
             
             // Update the provider
-            ref.read(notificationPermissionProvider.notifier).state = hasPermission;
+            ref.read(notificationPermissionProvider.notifier).state = finalPermission;
             
             // Show feedback to user
             if (mounted) {
-              if (hasPermission) {
+              if (finalPermission) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text('Notifikasi telah diaktifkan! 🎉'),
+                    content: Text('Notifikasi Firebase telah diaktifkan! 🎉'),
                     backgroundColor: Colors.green,
                     duration: Duration(seconds: 3),
                   ),

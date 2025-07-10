@@ -818,6 +818,61 @@ class ApiService {
     }
   }
 
+  Future<Map<String, dynamic>> registerFcmToken(String fcmToken) async {
+    try {
+      developer.log('Registering FCM token', name: 'ApiService');
+      
+      if (token == null) {
+        return {
+          'success': false,
+          'message': 'No authentication token',
+        };
+      }
+      
+      if (fcmToken.isEmpty) {
+        return {
+          'success': false,
+          'message': 'FCM token is required',
+        };
+      }
+      
+      final response = await http.post(
+        Uri.parse('$baseUrl/admin/fcm-token'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'fcm_token': fcmToken,
+        }),
+      ).timeout(const Duration(seconds: 10));
+      
+      developer.log('FCM token registration response status: ${response.statusCode}', name: 'ApiService');
+      developer.log('FCM token registration response body: ${response.body}', name: 'ApiService');
+      
+      if (response.statusCode == 200) {
+        developer.log('FCM token registered successfully', name: 'ApiService');
+        return {
+          'success': true,
+          'message': 'FCM token registered successfully',
+        };
+      } else {
+        final data = jsonDecode(response.body);
+        developer.log('Failed to register FCM token: ${data['error']}', name: 'ApiService');
+        return {
+          'success': false,
+          'message': data['error'] ?? 'Failed to register FCM token',
+        };
+      }
+    } catch (e) {
+      developer.log('Error registering FCM token: $e', name: 'ApiService');
+      return {
+        'success': false,
+        'message': 'Connection error: ${e.toString()}',
+      };
+    }
+  }
+
   void clearSession() {
     token = null;
     currentUsername = null;

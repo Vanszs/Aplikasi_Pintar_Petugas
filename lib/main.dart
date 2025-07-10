@@ -19,6 +19,7 @@ import 'providers/report_provider.dart';
 import 'services/notification_service.dart';
 import 'services/background_service.dart';
 import 'services/wake_lock_service.dart';
+import 'services/fcm_service.dart';
 import 'widgets/notification_permission_handler.dart';
 
 // Provider untuk menentukan mode dummy berdasarkan credential
@@ -71,6 +72,14 @@ final socketServiceProvider = Provider<dynamic>((ref) {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Initialize Firebase first
+  try {
+    await FCMService.initialize();
+    developer.log('Firebase initialized', name: 'Main');
+  } catch (e) {
+    developer.log('Error initializing Firebase: $e', name: 'Main');
+  }
   
   // Initialize background service for persistent socket connections
   try {
@@ -133,17 +142,83 @@ void main() async {
         notificationServiceProvider.overrideWith(
           (ref) => NotificationService()
         ),
+        
+        // Register FCM service provider
+        fcmServiceProvider.overrideWith(
+          (ref) => FCMService()
+        ),
       ],
       child: const MyApp(),
     ),
   );
 }
 
-class MyApp extends ConsumerWidget {
+class MyApp extends ConsumerStatefulWidget {
   const MyApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends ConsumerState<MyApp> {
+  @override
+  void initState() {
+    super.initState();
+    // Initialize FCM service after the app is built
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initializeFCM();
+    });
+  }
+
+  Future<void> _initializeFCM() async {
+    try {
+      final fcmService = ref.read(fcmServiceProvider);
+      await fcmService.initializeFCM();
+      
+      // Subscribe to general notifications topic
+      await fcmService.subscribeToTopic('petugas_notifications');
+      
+      // Set up token refresh callback to register with server when token changes
+      fcmService.setTokenRefreshCallback((newToken) {
+        _registerFcmTokenOnRefresh(newToken);
+      });
+      
+      developer.log('FCM service initialized in MyApp', name: 'MyApp');
+    } catch (e) {
+      developer.log('Error initializing FCM in MyApp: $e', name: 'MyApp');
+    }
+  }
+
+  void _registerFcmTokenOnRefresh(String newToken) {
+    try {
+      final authState = ref.read(authProvider);
+      
+      // Only register if user is authenticated and is admin
+      if (authState.isAuthenticated && 
+          authState.user != null && 
+          authState.user!.isAdmin && 
+          !ref.read(isDummyModeProvider)) {
+        
+        final apiService = ref.read(apiServiceProvider);
+        
+        // Register the new token
+        apiService.registerFcmToken(newToken).then((result) {
+          if (result['success']) {
+            developer.log('FCM token updated successfully on refresh', name: 'MyApp');
+          } else {
+            developer.log('Failed to update FCM token on refresh: ${result['message']}', name: 'MyApp');
+          }
+        }).catchError((e) {
+          developer.log('Error updating FCM token on refresh: $e', name: 'MyApp');
+        });
+      }
+    } catch (e) {
+      developer.log('Error in _registerFcmTokenOnRefresh: $e', name: 'MyApp');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final router = ref.watch(routerProvider);
     final isDummy = ref.watch(isDummyModeProvider);
     
@@ -297,6 +372,12 @@ class AutoSwitchingAuthNotifier extends AuthNotifier {
         );
         
         developer.log('Login successful for user: $username', name: 'AutoSwitchingAuth');
+        
+        // Register FCM token after successful login (for admin users only and not in dummy mode)
+        if (user.isAdmin && !isDummy) {
+          _registerFcmTokenAfterLogin(apiService);
+        }
+        
         return true;
       } else {
         developer.log('Login failed for user: $username', name: 'AutoSwitchingAuth');
@@ -313,6 +394,32 @@ class AutoSwitchingAuthNotifier extends AuthNotifier {
         errorMessage: 'Terjadi kesalahan: ${e.toString()}',
       );
       return false;
+    }
+  }
+
+  Future<void> _registerFcmTokenAfterLogin(dynamic apiService) async {
+    try {
+      developer.log('Attempting to register FCM token after login', name: 'AutoSwitchingAuth');
+      
+      // Get FCM token from saved preferences or current token
+      String? fcmToken = await FCMService.getSavedToken();
+      
+      if (fcmToken == null || fcmToken.isEmpty) {
+        developer.log('No FCM token available, skipping registration', name: 'AutoSwitchingAuth');
+        return;
+      }
+      
+      // Register token with the server
+      final result = await apiService.registerFcmToken(fcmToken);
+      
+      if (result['success']) {
+        developer.log('FCM token registered successfully after login', name: 'AutoSwitchingAuth');
+      } else {
+        developer.log('Failed to register FCM token: ${result['message']}', name: 'AutoSwitchingAuth');
+      }
+    } catch (e) {
+      // Don't fail login if FCM registration fails
+      developer.log('Error registering FCM token after login: $e', name: 'AutoSwitchingAuth');
     }
   }
 

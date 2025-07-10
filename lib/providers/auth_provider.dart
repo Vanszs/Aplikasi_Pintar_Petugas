@@ -1,10 +1,10 @@
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:developer' as developer;
 import 'dart:convert';
 import '../models/user.dart';
 import '../services/api.dart';
+import '../services/fcm_service.dart';
 
 
 extension AuthNotifierUserUpdate on AuthNotifier {
@@ -157,6 +157,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
         );
         
         developer.log('Login successful for user: $username', name: 'AuthProvider');
+        
+        // Register FCM token after successful login (for admin users only)
+        if (user.isAdmin) {
+          _registerFcmTokenAfterLogin();
+        }
+        
         return true;
       } else {
         developer.log('Login failed for user: $username', name: 'AuthProvider');
@@ -172,6 +178,57 @@ class AuthNotifier extends StateNotifier<AuthState> {
         isLoading: false,
         errorMessage: 'Error: ${e.toString()}',
       );
+      return false;
+    }
+  }
+
+  Future<void> _registerFcmTokenAfterLogin() async {
+    try {
+      developer.log('Attempting to register FCM token after login', name: 'AuthProvider');
+      
+      // Get FCM token from saved preferences or current token
+      String? fcmToken = await FCMService.getSavedToken();
+      
+      if (fcmToken == null || fcmToken.isEmpty) {
+        developer.log('No FCM token available, skipping registration', name: 'AuthProvider');
+        return;
+      }
+      
+      // Register token with the server
+      final result = await _apiService.registerFcmToken(fcmToken);
+      
+      if (result['success']) {
+        developer.log('FCM token registered successfully after login', name: 'AuthProvider');
+      } else {
+        developer.log('Failed to register FCM token: ${result['message']}', name: 'AuthProvider');
+      }
+    } catch (e) {
+      // Don't fail login if FCM registration fails
+      developer.log('Error registering FCM token after login: $e', name: 'AuthProvider');
+    }
+  }
+
+  // Method to manually register FCM token (e.g., when token is refreshed)
+  Future<bool> registerFcmToken(String fcmToken) async {
+    try {
+      developer.log('Manually registering FCM token', name: 'AuthProvider');
+      
+      if (state.token == null) {
+        developer.log('No auth token available for FCM registration', name: 'AuthProvider');
+        return false;
+      }
+      
+      final result = await _apiService.registerFcmToken(fcmToken);
+      
+      if (result['success']) {
+        developer.log('FCM token registered successfully', name: 'AuthProvider');
+        return true;
+      } else {
+        developer.log('Failed to register FCM token: ${result['message']}', name: 'AuthProvider');
+        return false;
+      }
+    } catch (e) {
+      developer.log('Error registering FCM token: $e', name: 'AuthProvider');
       return false;
     }
   }

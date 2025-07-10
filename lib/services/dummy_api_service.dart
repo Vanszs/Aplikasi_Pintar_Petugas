@@ -14,6 +14,8 @@ class DummyApiService {
     name: 'Test User Demo',
     address: 'Jl. Kelurahan Demo No. 123, Jakarta Selatan',
     createdAt: DateTime(2024, 1, 15),
+    isAdmin: true, // Set as admin untuk testing FCM
+    role: 'admin',
   );
 
   // Dummy reports data
@@ -198,5 +200,15 @@ class DummyApiService {
     token = null;
     currentUsername = null;
     developer.log('Dummy: Session cleared', name: 'DummyApiService');
+  }
+
+  Future<Map<String, dynamic>> registerFcmToken(String fcmToken) async {
+    developer.log('Dummy: Registering FCM token (demo mode)', name: 'DummyApiService');
+    await Future.delayed(const Duration(milliseconds: 300)); // Simulate network delay
+    
+    return {
+      'success': true,
+      'message': 'FCM token registered successfully (demo mode)',
+    };
   }
 }

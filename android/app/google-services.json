@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "5419283260",
+    "project_id": "kkn-simokerto",
+    "storage_bucket": "kkn-simokerto.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:5419283260:android:5ca26e17209925d0836439",
+        "android_client_info": {
+          "package_name": "com.example.petugas_pintar"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAM5-ZvPTs10BGQrAV0zD424Jrs6766dZo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
