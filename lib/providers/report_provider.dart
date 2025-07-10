@@ -53,6 +53,7 @@ class ReportNotifier extends StateNotifier<ReportState> {
       : super(ReportState()) {
     _notificationService = ref.read(notificationServiceProvider);
     _listenForReports();
+    _listenForAppResume();
     _loadInitialData();
   }
 
@@ -69,26 +70,74 @@ class ReportNotifier extends StateNotifier<ReportState> {
             address: data['address'] ?? 'Alamat tidak diketahui',
             createdAt: DateTime.parse(data['created_at'] ?? DateTime.now().toIso8601String()),
             userName: data['name'] ?? 'Tanpa nama',
-            jenisLaporan: data['jenis_laporan'],
+            jenisLaporan: data['jenis_laporan'] ?? 'Umum',
           );
           
-          // Tampilkan notifikasi dengan getaran untuk laporan baru
+          // Log data for debugging
+          developer.log('Processing report: ID=${report.id}, Type=${report.jenisLaporan}', name: 'ReportProvider');
+          
+          // Multiple attempts to ensure notification is shown, with increasing delays
+          // First attempt - immediate
           _notificationService.showNewReportNotification(report);
+          
+          // Second attempt - short delay
+          Future.delayed(Duration(milliseconds: 500), () {
+            _notificationService.showNewReportNotification(report);
+          });
+          
+          // Third attempt - longer delay (helps with background notifications)
+          Future.delayed(Duration(seconds: 2), () {
+            _notificationService.showNewReportNotification(report);
+          });
+          
+          // Force reload reports when we receive a new one via socket
+          _retryLoadReports();
           
         } catch (parseError) {
           developer.log('Error parsing socket report data: $parseError', name: 'ReportProvider');
         }
+      });
+      
+      // Re-register for new_report event if socket reconnects
+      _socketService.on('connect', (_) {
+        developer.log('Socket reconnected, re-registering for new_report events', name: 'ReportProvider');
         
-        // Force reload reports when we receive a new one via socket
-        loadAllReports(); // Changed to loadAllReports for petugas
+        // Wait a moment for socket to fully initialize before registering listeners
+        Future.delayed(Duration(milliseconds: 500), () {
+          _listenForReports();
+        });
       });
     } catch (e) {
       developer.log('Error setting up socket listener: $e', name: 'ReportProvider');
+      
+      // Retry listener setup after delay
+      Future.delayed(Duration(seconds: 5), () {
+        _listenForReports();
+      });
     }
+  }
+  
+  // Retry loading reports several times with increasing delays
+  void _retryLoadReports() {
+    developer.log('Triggering report data refresh sequence', name: 'ReportProvider');
+    
+    // Immediate attempt
+    loadAllReports();
+    
+    // Additional attempts with varying delays to catch any network issues
+    Future.delayed(Duration(milliseconds: 500), () => loadAllReports());
+    Future.delayed(Duration(seconds: 2), () => loadAllReports());
+    Future.delayed(Duration(seconds: 5), () => loadAllReports());
+    Future.delayed(Duration(seconds: 10), () => loadAllReports());
   }
 
   Future<void> _loadInitialData() async {
-    // We'll load this data when it's needed, not automatically
+    // Immediately load reports on startup - don't wait for user action
+    developer.log('Loading initial data automatically', name: 'ReportProvider');
+    loadAllReports();
+    
+    // Also load global stats if needed
+    loadGlobalStats();
   }
 
   void resetState() {
@@ -97,20 +146,41 @@ class ReportNotifier extends StateNotifier<ReportState> {
 
   // Ubah untuk petugas: load semua laporan
   Future<void> loadAllReports() async {
-    developer.log('Loading all reports', name: 'ReportProvider');
-    state = state.copyWith(isLoading: true);
+    developer.log('Loading all reports from API', name: 'ReportProvider');
+    
+    // Only set isLoading if we don't already have reports
+    // This prevents UI flicker when refreshing data
+    if (state.reports.isEmpty) {
+      state = state.copyWith(isLoading: true);
+    }
     
     try {
+      developer.log('Requesting getAllReports from API service', name: 'ReportProvider');
       final result = await _apiService.getAllReports();
       
       if (result['success']) {
+        final newReports = result['reports'] as List<Report>;
+        developer.log('Received ${newReports.length} reports from API', name: 'ReportProvider');
+        
+        // Check if we have new reports compared to current state
+        bool hasNewData = _hasNewOrUpdatedReports(state.reports, newReports);
+        
+        // Update state with new reports
         state = state.copyWith(
-          reports: result['reports'] as List<Report>,
+          reports: newReports,
           isLoading: false,
           errorMessage: null,
         );
-        developer.log('All reports loaded successfully', name: 'ReportProvider');
+        
+        if (hasNewData) {
+          developer.log('New or updated report data detected and loaded', name: 'ReportProvider');
+        } else {
+          developer.log('Reports loaded, no changes detected', name: 'ReportProvider');
+        }
       } else {
+        developer.log('API returned error: ${result['message']}', name: 'ReportProvider');
+        
+        // Don't clear existing reports on error, just update error state
         state = state.copyWith(
           isLoading: false,
           errorMessage: result['message'],
@@ -264,6 +334,80 @@ class ReportNotifier extends StateNotifier<ReportState> {
       phone: phone,
       jenisLaporan: jenisLaporan
     );
+  }
+
+  void _listenForAppResume() {
+    try {
+      _socketService.listenForAppResume(() {
+        developer.log('⚡ CRITICAL: App resume detected, immediately reloading reports', name: 'ReportProvider');
+        
+        // Immediate aggressive reload sequence with multiple attempts
+        // This ensures we get fresh data when the app is brought back to foreground
+        loadAllReports();
+        
+        // Schedule multiple reload attempts with increasing delays
+        // to account for unstable network conditions when resuming
+        Future.delayed(Duration(milliseconds: 300), () => loadAllReports());
+        Future.delayed(Duration(milliseconds: 800), () => loadAllReports());
+        Future.delayed(Duration(seconds: 2), () => loadAllReports());
+        Future.delayed(Duration(seconds: 5), () => loadAllReports());
+      });
+      
+      // Also listen for the global app resumed event from AppLifecycleObserver
+      _socketService.on('global:app_resumed', (_) {
+        developer.log('Global app resume event received, triggering refresh', name: 'ReportProvider');
+        loadAllReports();
+      });
+    } catch (e) {
+      developer.log('Error setting up app resume listener: $e', name: 'ReportProvider');
+      
+      // Retry setting up the listener after a delay
+      Future.delayed(Duration(seconds: 2), () {
+        _listenForAppResume();
+      });
+    }
+  }
+
+  // Helper method to check if new reports contain any changes
+  bool _hasNewOrUpdatedReports(List<Report> oldReports, List<Report> newReports) {
+    // If count differs, we definitely have changes
+    if (oldReports.length != newReports.length) {
+      developer.log('Report count changed: ${oldReports.length} -> ${newReports.length}', name: 'ReportProvider');
+      return true;
+    }
+    
+    // Check if we have any new report IDs
+    final oldIds = oldReports.map((r) => r.id).toSet();
+    final newIds = newReports.map((r) => r.id).toSet();
+    
+    // If any ID exists in new but not in old, we have new reports
+    if (newIds.any((id) => !oldIds.contains(id))) {
+      developer.log('Found new report IDs', name: 'ReportProvider');
+      return true;
+    }
+    
+    // Compare timestamps to detect updates
+    for (final newReport in newReports) {
+      try {
+        // Find matching report by ID
+        final oldReport = oldReports.firstWhere(
+          (r) => r.id == newReport.id,
+          // This will throw if not found, which is caught by the try/catch
+        );
+        
+        // Compare timestamps if available
+        if (oldReport.createdAt != newReport.createdAt) {
+          developer.log('Report ${newReport.id} has updated timestamp', name: 'ReportProvider');
+          return true;
+        }
+      } catch (_) {
+        // If we can't find a matching report, it's new
+        developer.log('New report detected with ID: ${newReport.id}', name: 'ReportProvider');
+        return true;
+      }
+    }
+    
+    return false;
   }
 }
 

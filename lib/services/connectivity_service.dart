@@ -31,14 +31,27 @@ class ConnectivityService extends ChangeNotifier {
     try {
       developer.log('Checking internet connectivity...', name: 'ConnectivityService');
       
-      final result = await InternetAddress.lookup('google.com')
-          .timeout(const Duration(seconds: 5));
+      // Try multiple domains for better reliability
+      bool isReachable = false;
       
-      final newStatus = result.isNotEmpty && result[0].rawAddress.isNotEmpty;
+      // Try multiple domains in case one is blocked
+      for (String host in ['8.8.8.8', '1.1.1.1', 'google.com', 'cloudflare.com']) {
+        try {
+          final result = await InternetAddress.lookup(host)
+              .timeout(const Duration(seconds: 2));
+          if (result.isNotEmpty && result[0].rawAddress.isNotEmpty) {
+            isReachable = true;
+            break;
+          }
+        } catch (_) {
+          // Try next host
+          continue;
+        }
+      }
       
       // Only notify if status changed
-      if (_isConnected != newStatus) {
-        _isConnected = newStatus;
+      if (_isConnected != isReachable) {
+        _isConnected = isReachable;
         notifyListeners();
       }
       

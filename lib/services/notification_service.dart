@@ -3,6 +3,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:vibration/vibration.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:developer' as developer;
+import 'dart:typed_data';
 import '../models/report.dart';
 
 class NotificationService extends ChangeNotifier {
@@ -90,23 +91,48 @@ class NotificationService extends ChangeNotifier {
   }
 
   Future<void> showNewReportNotification(Report report) async {
+    // Ensure initialization is complete before showing notification
     if (!_isInitialized) {
-      developer.log('Notification service not initialized yet', name: 'NotificationService');
-      return;
+      developer.log('Notification service not initialized yet, retrying initialization', name: 'NotificationService');
+      try {
+        await _initializeNotifications();
+        await requestNotificationPermissions(); // Make sure permissions are granted
+      } catch (e) {
+        developer.log('Error during notification init retry: $e', name: 'NotificationService');
+      }
+      
+      // Double-check initialization status
+      if (!_isInitialized) {
+        developer.log('Failed to initialize notification service after retry', name: 'NotificationService');
+        // Try one more time with a delay - this helps in some Android environments
+        await Future.delayed(Duration(milliseconds: 500));
+        await _initializeNotifications();
+      }
     }
 
     try {
       // Pertama, vibrate
       await vibrate();
 
-      // Kemudian tampilkan notifikasi
-      const AndroidNotificationDetails androidNotificationDetails = AndroidNotificationDetails(
+      // Kemudian tampilkan notifikasi dengan pengaturan yang dioptimalkan untuk background
+      // Define vibration pattern
+      final vibrationPattern = Int64List(6);
+      vibrationPattern[0] = 0;
+      vibrationPattern[1] = 500;
+      vibrationPattern[2] = 200;
+      vibrationPattern[3] = 500;
+      vibrationPattern[4] = 200;
+      vibrationPattern[5] = 500;
+      
+      // Kemudian tampilkan notifikasi dengan pengaturan yang dioptimalkan untuk background
+      final AndroidNotificationDetails androidNotificationDetails = AndroidNotificationDetails(
         'new_reports',
         'Laporan Baru',
         channelDescription: 'Notifikasi saat ada laporan baru',
         importance: Importance.max,
-        priority: Priority.max,
+        priority: Priority.high,
         fullScreenIntent: true, // Will pop up even when screen is locked
+        visibility: NotificationVisibility.public,
         ticker: 'ticker',
         color: Color(0xFF6366F1), // Warna brand indigo
         enableLights: true,
@@ -115,6 +141,12 @@ class NotificationService extends ChangeNotifier {
         ledOffMs: 500,
         // Gunakan default sound
         playSound: true,
+        enableVibration: true,
+        vibrationPattern: vibrationPattern,
+        category: AndroidNotificationCategory.alarm, // Critical notification category
+        ongoing: true, // Make it persistent until user interacts with it
+        autoCancel: false, // Don't auto-cancel the notification
+        timeoutAfter: 300000, // 5 minutes in milliseconds
         largeIcon: DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
       );
 
@@ -125,17 +157,16 @@ class NotificationService extends ChangeNotifier {
         // Gunakan default sound untuk iOS
       );
 
-      const NotificationDetails notificationDetails = NotificationDetails(
+      final NotificationDetails notificationDetails = NotificationDetails(
         android: androidNotificationDetails,
         iOS: iOSNotificationDetails,
       );
 
-      // Simplified notification - no need for address or time
-      
+      // Simplified notification - just show report type as requested
       await _flutterLocalNotificationsPlugin.show(
         report.id,
         'Laporan baru diterima',
-        '${report.getReportType().toUpperCase()}',
+        report.getReportType().toUpperCase(),
         notificationDetails,
       );
 
@@ -150,10 +181,19 @@ class NotificationService extends ChangeNotifier {
       // Cek apakah device mendukung vibration
       final hasVibrator = await Vibration.hasVibrator();
       if (hasVibrator == true) {
-        // Pola getaran untuk notifikasi laporan baru - lebih kuat dan lebih lama
-        // [waktu tunggu ms, getaran ms, waktu tunggu ms, getaran ms]
-        await Vibration.vibrate(pattern: [0, 500, 200, 500, 200, 500]);
-        developer.log('Device vibrated for new report', name: 'NotificationService');
+        // Multiple attempts to ensure vibration works
+        for (int i = 0; i < 2; i++) {
+          try {
+            // Pola getaran untuk notifikasi laporan baru - lebih kuat dan lebih lama
+            // [waktu tunggu ms, getaran ms, waktu tunggu ms, getaran ms]
+            await Vibration.vibrate(pattern: [0, 500, 200, 500, 200, 500]);
+            developer.log('Device vibrated for new report', name: 'NotificationService');
+            break; // Stop if successful
+          } catch (e) {
+            developer.log('Vibration attempt $i failed: $e', name: 'NotificationService');
+            await Future.delayed(Duration(milliseconds: 300)); // Wait before retry
+          }
+        }
       } else {
         developer.log('Device does not support vibration', name: 'NotificationService');
       }

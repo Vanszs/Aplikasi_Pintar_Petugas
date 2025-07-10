@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 import 'dart:convert';
 import 'dart:developer' as developer;
 import 'routes.dart';
@@ -53,12 +54,24 @@ final socketServiceProvider = Provider<dynamic>((ref) {
   } else {
     final realSocket = SocketService(baseUrl: serverUrl);
     realSocket.connect();
+    
+    // Create and initialize the lifecycle observer
+    AppLifecycleObserver(realSocket); // This automatically registers itself
+    
     return realSocket;
   }
 });
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Only enable WakeLock initially for setup, will be managed by lifecycle observer
+  try {
+    await WakelockPlus.enable();
+    developer.log('WakeLock temporarily enabled during app startup', name: 'Main');
+  } catch (e) {
+    developer.log('Failed to enable WakeLock: $e', name: 'Main');
+  }
   
   // Set preferred orientations
   SystemChrome.setPreferredOrientations([
@@ -208,11 +221,10 @@ class MyApp extends ConsumerWidget {
 // Simplified AutoSwitchingAuthNotifier
 class AutoSwitchingAuthNotifier extends AuthNotifier {
   final StateNotifierProviderRef<AuthNotifier, AuthState> _ref;
-  final String _serverUrl;
   final SharedPreferences _prefs;
 
-  AutoSwitchingAuthNotifier(this._ref, this._prefs, this._serverUrl) 
-      : super(ApiService(baseUrl: _serverUrl), _prefs) {
+  AutoSwitchingAuthNotifier(this._ref, this._prefs, String serverUrl) 
+      : super(ApiService(baseUrl: serverUrl), _prefs) {
     _initializeAuth();
   }
 
@@ -323,7 +335,6 @@ class AutoSwitchingAuthNotifier extends AuthNotifier {
     await _prefs.remove('username');
   }
 
-  @override
   Future<void> _initializeAuth() async {
     developer.log('Initializing authentication', name: 'AutoSwitchingAuth');
     final token = _prefs.getString('auth_token');
@@ -403,5 +414,152 @@ class AutoSwitchingAuthNotifier extends AuthNotifier {
       developer.log('Error refreshing token: $e', name: 'AutoSwitchingAuth');
       return false;
     }
+  }
+}
+
+// App lifecycle observer to handle background/foreground transitions
+class AppLifecycleObserver with WidgetsBindingObserver {
+  final SocketService socketService;
+
+  AppLifecycleObserver(this.socketService) {
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    developer.log('App lifecycle state changed to: $state', name: 'AppLifecycleObserver');
+    
+    switch (state) {
+      case AppLifecycleState.resumed:
+        // App is visible and responding to user input
+        developer.log('APP RESUMED: Immediately reconnecting socket and refreshing data', name: 'AppLifecycleObserver');
+        
+        // First, immediately make sure socket is connected
+        socketService.connect();
+        
+        // Delay very slightly to allow socket to connect
+        Future.delayed(Duration(milliseconds: 300), () {
+          // Force reload report data with high priority
+          developer.log('CRITICAL: Forcing data refresh now', name: 'AppLifecycleObserver');
+          _forceReloadReports();
+        });
+        
+        // Direct access to report notifier to force refresh
+        try {
+          developer.log('Broadcasting app resume to all listeners', name: 'AppLifecycleObserver');
+          // This will broadcast to any listeners in the app
+          socketService.emit('global:app_resumed', {'timestamp': DateTime.now().millisecondsSinceEpoch});
+        } catch (e) {
+          developer.log('Error broadcasting app resume: $e', name: 'AppLifecycleObserver');
+        }
+        
+        // Make sure WakeLock is enabled when app is in foreground
+        _ensureWakeLock(true);
+        break;
+        
+      case AppLifecycleState.inactive:
+        // App is in an inactive state (may happen when receiving phone call)
+        // Keep the socket alive but allow screen to dim
+        developer.log('App inactive: keeping socket alive', name: 'AppLifecycleObserver');
+        socketService.keepAliveInBackground();
+        _ensureWakeLock(false); // Let screen dim to save battery
+        break;
+        
+      case AppLifecycleState.paused:
+        // App is not visible but may still be processing
+        // Keep the socket alive in the background
+        developer.log('App paused: maintaining minimal background service', name: 'AppLifecycleObserver');
+        socketService.keepAliveInBackground();
+        
+        // Disable WakeLock in background to save battery
+        _ensureWakeLock(false);
+        break;
+        
+      case AppLifecycleState.detached:
+        // App is suspended but not terminated
+        developer.log('App detached: releasing resources', name: 'AppLifecycleObserver');
+        // Don't force connection in detached state to save battery
+        _ensureWakeLock(false); // Make sure wakelock is off
+        break;
+        
+      case AppLifecycleState.hidden:
+        // For Flutter 3.13+, there's a hidden state
+        developer.log('App hidden: maintaining minimal service', name: 'AppLifecycleObserver');
+        socketService.keepAliveInBackground();
+        _ensureWakeLock(false); // Let device sleep to save battery
+        break;
+        
+      // No default case needed as we've covered all enum values
+    }
+  }
+
+  // Helper method to ensure WakeLock is in the desired state
+  Future<void> _ensureWakeLock(bool enable) async {
+    try {
+      if (enable) {
+        // Only enable wakelock when in foreground to save battery
+        if (!await WakelockPlus.enabled) {
+          await WakelockPlus.enable();
+          developer.log('WakeLock enabled', name: 'AppLifecycleObserver');
+        }
+      } else {
+        // Disable when app is no longer visible
+        if (await WakelockPlus.enabled) {
+          await WakelockPlus.disable();
+          developer.log('WakeLock disabled', name: 'AppLifecycleObserver');
+        }
+      }
+    } catch (e) {
+      developer.log('Error managing WakeLock: $e', name: 'AppLifecycleObserver');
+    }
+  }
+
+  // Force reload of reports data using the provider system
+  void _forceReloadReports() {
+    // First immediate attempt
+    Future.delayed(Duration.zero, () {
+      try {
+        developer.log('PRIORITY: Forcing immediate data refresh after app resume', name: 'AppLifecycleObserver');
+        
+        // Use socket service to emit a local refresh event that the app can react to
+        try {
+          // Emit app_resumed event multiple times with delays to ensure it's processed
+          socketService.emit('app_resumed', {
+            'timestamp': DateTime.now().millisecondsSinceEpoch,
+            'priority': 'high',
+            'action': 'force_refresh'
+          });
+          
+          // Log that we're forcing immediate refresh
+          developer.log('Sent high priority app_resumed event to trigger refresh', name: 'AppLifecycleObserver');
+        } catch (e) {
+          developer.log('Error emitting app_resumed event: $e', name: 'AppLifecycleObserver');
+        }
+      } catch (e) {
+        developer.log('Failed to trigger initial refresh: $e', name: 'AppLifecycleObserver');
+      }
+    });
+    
+    // Additional attempts with delays to ensure refresh happens
+    Future.delayed(Duration(milliseconds: 500), _sendRefreshRequest);
+    Future.delayed(Duration(seconds: 1), _sendRefreshRequest);
+    Future.delayed(Duration(seconds: 3), _sendRefreshRequest);
+  }
+  
+  void _sendRefreshRequest() {
+    try {
+      // Emit app_resumed event to trigger refresh
+      socketService.emit('app_resumed', {
+        'timestamp': DateTime.now().millisecondsSinceEpoch,
+        'action': 'refresh_data'
+      });
+      developer.log('Sent follow-up refresh request', name: 'AppLifecycleObserver');
+    } catch (e) {
+      developer.log('Error in follow-up refresh: $e', name: 'AppLifecycleObserver');
+    }
+  }
+
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
   }
 }

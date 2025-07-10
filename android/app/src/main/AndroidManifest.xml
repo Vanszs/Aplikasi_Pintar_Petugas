@@ -2,6 +2,7 @@
     <!-- Internet permissions -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <!-- Vibration permission -->
     <uses-permission android:name="android.permission.VIBRATE" />
     <!-- Notifications permission for Android 13+ -->
@@ -13,7 +14,8 @@
     <application
         android:label="Petugas Pintar"
         android:name="${applicationName}"
-        android:icon="@mipmap/launcher_icon">
+        android:icon="@mipmap/launcher_icon"
+        android:usesCleartextTraffic="true">
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -23,7 +25,11 @@
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
             android:hardwareAccelerated="true"
             android:windowSoftInputMode="adjustResize"
-            android:keepScreenOn="true">
+            android:keepScreenOn="true"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
+            android:directBootAware="true"
+            android:excludeFromRecents="false">
             <!-- Specifies an Android theme to apply to this Activity as soon as
                  the Android process has started. This theme is visible to the user
                  while the Flutter UI initializes. After that, this theme continues
