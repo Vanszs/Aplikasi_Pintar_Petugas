@@ -61,6 +61,13 @@ class PersistentWorkerService {
       if (!isRunning) {
         developer.log("Service not running, starting it", name: "PersistentWorker");
         await BackgroundService.startService();
+        
+        // Wait a bit and verify it actually started
+        await Future.delayed(Duration(milliseconds: 500));
+        final isNowRunning = await BackgroundService.isRunning();
+        developer.log("Service start verification: $isNowRunning", name: "PersistentWorker");
+      } else {
+        developer.log("Service already running, skipping start", name: "PersistentWorker");
       }
       
       // Record successful run in any case
@@ -71,12 +78,8 @@ class PersistentWorkerService {
     } catch (e) {
       developer.log("Error ensuring service is running: $e", name: "PersistentWorker");
       
-      // Try to start service anyway
-      try {
-        await BackgroundService.startService();
-      } catch (e2) {
-        developer.log("Error starting service in recovery: $e2", name: "PersistentWorker");
-      }
+      // Don't try to restart if there was an error, to prevent cascade failures
+      developer.log("Skipping service restart due to error", name: "PersistentWorker");
     }
   }
   

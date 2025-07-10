@@ -9,6 +9,7 @@ import 'dart:developer' as developer;
 import '../models/report.dart';
 import 'wake_lock_service.dart';
 
+@pragma('vm:entry-point')
 class BackgroundService {
   static final FlutterBackgroundService _service = FlutterBackgroundService();
   static final String serverUrl = 'http://185.197.195.155:3000';
@@ -34,13 +35,13 @@ class BackgroundService {
     await _service.configure(
       androidConfiguration: AndroidConfiguration(
         onStart: onStart,
-        autoStart: true,
+        autoStart: false, // Changed to false to prevent auto-restart conflicts
         isForegroundMode: true,
         foregroundServiceNotificationId: 888,
         initialNotificationTitle: 'Petugas Pintar Aktif',
         initialNotificationContent: 'Memantau laporan baru...',
         notificationChannelId: 'petugas_pintar_background',
-        autoStartOnBoot: true,
+        autoStartOnBoot: false, // Changed to false to prevent boot conflicts
       ),
       iosConfiguration: IosConfiguration(
         autoStart: true,
@@ -54,6 +55,7 @@ class BackgroundService {
   }
 
   // iOS background handler
+  @pragma('vm:entry-point')
   static Future<bool> onIosBackground(ServiceInstance service) async {
     WidgetsFlutterBinding.ensureInitialized();
     DartPluginRegistrant.ensureInitialized();
@@ -61,7 +63,25 @@ class BackgroundService {
   }
 
   // Main service entry point
+  @pragma('vm:entry-point')
   static Future<void> onStart(ServiceInstance service) async {
+    // CRITICAL: Set foreground service IMMEDIATELY to prevent timeout
+    if (service is AndroidServiceInstance) {
+      try {
+        service.setAsForegroundService();
+        service.setForegroundNotificationInfo(
+          title: 'Petugas Pintar Aktif',
+          content: 'Siap menerima notifikasi laporan',
+        );
+        developer.log('Foreground service set successfully', name: 'BackgroundService');
+      } catch (e) {
+        developer.log('Failed to set foreground service: $e', name: 'BackgroundService');
+        // If setting foreground fails, stop the service to prevent crash
+        service.stopSelf();
+        return;
+      }
+    }
+
     DartPluginRegistrant.ensureInitialized();
 
     // Enable wakelock to keep CPU active
@@ -70,17 +90,6 @@ class BackgroundService {
       developer.log('WakeLock enabled in background service', name: 'BackgroundService');
     } catch (e) {
       developer.log('Failed to enable WakeLock in background: $e', name: 'BackgroundService');
-    }
-
-    // For Android - set as foreground service with notification
-    // Note: Foreground service type is now set in AndroidManifest.xml
-    // with android:foregroundServiceType="dataSync|connectedDevice"
-    if (service is AndroidServiceInstance) {
-      service.setAsForegroundService();
-      service.setForegroundNotificationInfo(
-        title: 'Petugas Pintar Aktif',
-        content: 'Siap menerima notifikasi laporan',
-      );
     }
 
     // Debug log
@@ -309,17 +318,34 @@ class BackgroundService {
   }
   
   static Future<void> startService() async {
-    await initializeService();
-    await _service.startService();
-    developer.log('Background service started', name: 'BackgroundService');
+    try {
+      // Check if service is already running to prevent multiple starts
+      final isRunning = await _service.isRunning();
+      if (isRunning) {
+        developer.log('Background service already running, skipping start', name: 'BackgroundService');
+        return;
+      }
+      
+      await initializeService();
+      await _service.startService();
+      developer.log('Background service started successfully', name: 'BackgroundService');
+    } catch (e) {
+      developer.log('Error starting background service: $e', name: 'BackgroundService');
+      // Don't rethrow to prevent cascading failures
+    }
+  }
+
+  static Future<bool> isRunning() async {
+    try {
+      return await _service.isRunning();
+    } catch (e) {
+      developer.log('Error checking service status: $e', name: 'BackgroundService');
+      return false;
+    }
   }
 
   static void stopService() {
     _service.invoke('stopService');
     developer.log('Background service stopped', name: 'BackgroundService');
-  }
-  
-  static Future<bool> isRunning() async {
-    return await _service.isRunning();
   }
 }

@@ -36,6 +36,10 @@ class FCMService extends ChangeNotifier {
   Function(String)? _onTokenRefresh;
   bool _notificationsEnabled = true; // Track if notifications should be shown
   
+  // Enhanced deduplication tracking
+  final Map<String, DateTime> _recentFcmNotifications = {};
+  static const Duration _fcmDeduplicationWindow = Duration(seconds: 5);
+  
   // Getters
   bool get isInitialized => _isInitialized;
   String? get fcmToken => _fcmToken;
@@ -43,7 +47,35 @@ class FCMService extends ChangeNotifier {
   // Method to enable/disable notifications
   void setNotificationsEnabled(bool enabled) {
     _notificationsEnabled = enabled;
+    if (!enabled) {
+      _recentFcmNotifications.clear();
+    }
     developer.log('FCM notifications ${enabled ? 'enabled' : 'disabled'}', name: 'FCMService');
+    notifyListeners();
+  }
+
+  // Check if FCM notification should be shown (enhanced deduplication)
+  bool _shouldShowFcmNotification(String notificationKey) {
+    if (!_notificationsEnabled) {
+      developer.log('FCM notifications disabled, skipping: $notificationKey', name: 'FCMService');
+      return false;
+    }
+
+    final now = DateTime.now();
+    
+    // Clean old entries
+    _recentFcmNotifications.removeWhere((key, time) => 
+      now.difference(time) > _fcmDeduplicationWindow);
+    
+    // Check if this notification was recently shown
+    if (_recentFcmNotifications.containsKey(notificationKey)) {
+      developer.log('Duplicate FCM notification blocked: $notificationKey', name: 'FCMService');
+      return false;
+    }
+    
+    // Mark as shown
+    _recentFcmNotifications[notificationKey] = now;
+    return true;
   }
 
   // Method to set token refresh callback
@@ -224,31 +256,44 @@ class FCMService extends ChangeNotifier {
         channelName = 'Status Laporan';
       }
 
-      await _localNotifications.show(
-        notification.hashCode,
-        notification.title,
-        notification.body,
-        NotificationDetails(
-          android: AndroidNotificationDetails(
-            channelId,
-            channelName,
-            channelDescription: 'Firebase Cloud Messaging notifications',
-            icon: '@mipmap/launcher_icon',
-            importance: Importance.high,
-            priority: Priority.high,
-            color: const Color(0xFF4F46E5),
-            enableLights: true,
-            enableVibration: false,
-            playSound: true,
+      // Create unique key for deduplication based on message data
+      String notificationKey = 'fcm_general_${notification.hashCode}';
+      
+      // Create more specific key based on notification type
+      if (data['type'] == 'new_report' && data['reportId'] != null) {
+        notificationKey = 'fcm_new_report_${data['reportId']}';
+      } else if (data['type'] == 'status_update' && data['reportId'] != null) {
+        notificationKey = 'fcm_status_update_${data['reportId']}_${data['status'] ?? 'unknown'}';
+      }
+
+      // Check deduplication before showing notification
+      if (_shouldShowFcmNotification(notificationKey)) {
+        await _localNotifications.show(
+          notification.hashCode,
+          notification.title,
+          notification.body,
+          NotificationDetails(
+            android: AndroidNotificationDetails(
+              channelId,
+              channelName,
+              channelDescription: 'Firebase Cloud Messaging notifications',
+              icon: '@mipmap/launcher_icon',
+              importance: Importance.high,
+              priority: Priority.high,
+              color: const Color(0xFF4F46E5),
+              enableLights: true,
+              enableVibration: false,
+              playSound: true,
+            ),
+            iOS: const DarwinNotificationDetails(
+              presentAlert: true,
+              presentBadge: true,
+              presentSound: true,
+            ),
           ),
-          iOS: const DarwinNotificationDetails(
-            presentAlert: true,
-            presentBadge: true,
-            presentSound: true,
-          ),
-        ),
-        payload: jsonEncode(message.data),
-      );
+          payload: jsonEncode(message.data),
+        );
+      }
     } else if (!_notificationsEnabled) {
       developer.log('FCM notification skipped - notifications disabled', name: 'FCMService');
     }

@@ -328,12 +328,16 @@ class SocketService extends ChangeNotifier {
     
     _socket!.onConnect((_) {
       _connected = true;
-      developer.log('Socket connected to IoT namespace with ID: ${_socket!.id}', name: 'SocketService');
+      
+      // Safe logging - check if properties exist before accessing
+      final socketId = _socket?.id ?? 'unknown';
+      developer.log('Socket connected to IoT namespace with ID: $socketId', name: 'SocketService');
       
       // Additional debug info
       try {
         if (_socket != null) {
-          developer.log('Socket connected to namespace: ${_socket!.nsp}', name: 'SocketService');
+          final namespace = _socket?.nsp ?? 'unknown';
+          developer.log('Socket connected to namespace: $namespace', name: 'SocketService');
           
           // IMPORTANT: Always join the officer channel on every connection/reconnection
           _socket!.emit('join_officer_channel', {});

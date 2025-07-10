@@ -16,9 +16,9 @@ import 'services/dummy_socket_service.dart';
 import 'services/connectivity_service.dart';
 import 'providers/auth_provider.dart';
 import 'providers/report_provider.dart';
-import 'services/notification_service.dart';
-import 'services/background_service.dart';
-import 'services/wake_lock_service.dart';
+// import 'services/notification_service.dart'; // Provider defined in service file
+// import 'services/background_service.dart'; // REMOVED: Using FCM only
+// import 'services/wake_lock_service.dart'; // REMOVED: WakeLock causes conflicts
 import 'services/fcm_service.dart';
 import 'widgets/notification_permission_handler.dart';
 
@@ -82,14 +82,20 @@ void main() async {
   }
   
   // Initialize background service for persistent socket connections
+  // REMOVED: Background service causes crashes and conflicts with FCM
+  // Only using FCM for notifications now
+  /*
   try {
     await BackgroundService.initializeService();
     developer.log('Background service initialized', name: 'Main');
   } catch (e) {
     developer.log('Error initializing background service: $e', name: 'Main');
   }
+  */
   
-  // Enable custom WakeLock service with keepalive pulses
+  // WakeLock service REMOVED to prevent battery drain and conflicts
+  // FCM notifications work without keeping app always awake
+  /*
   try {
     await WakeLockService.enableWakeLock();
     developer.log('Enhanced WakeLock enabled with keepalive pulses', name: 'Main');
@@ -103,6 +109,7 @@ void main() async {
       developer.log('Failed to enable WakeLock: $e', name: 'Main');
     }
   }
+  */
   
   // Set preferred orientations
   SystemChrome.setPreferredOrientations([
@@ -137,11 +144,6 @@ void main() async {
           final socketService = ref.watch(socketServiceProvider);
           return ReportNotifier(apiService, socketService, ref);
         }),
-        
-        // Register notification service provider
-        notificationServiceProvider.overrideWith(
-          (ref) => NotificationService()
-        ),
         
         // Register FCM service provider
         fcmServiceProvider.overrideWith(

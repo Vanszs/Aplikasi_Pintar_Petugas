@@ -16,6 +16,9 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
+    <!-- Add network state permission for connected device service -->
+    <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
     <!-- Add RECEIVE to allow our broadcast receiver to work -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <!-- Battery optimization permissions -->
@@ -65,7 +68,7 @@
         <!-- Modify the background service with the foreground service type for Android 13+ -->
         <service
             android:name="id.flutter.flutter_background_service.BackgroundService"
-            android:foregroundServiceType="dataSync|connectedDevice"
+            android:foregroundServiceType="dataSync"
             android:enabled="true"
             android:exported="true"
             tools:replace="android:exported" />

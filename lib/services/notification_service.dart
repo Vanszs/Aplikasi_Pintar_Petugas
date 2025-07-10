@@ -1,340 +1,146 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'dart:developer' as developer;
 import '../models/report.dart';
 
+/// NotificationService - Simplified to only use FCM
+/// Local notifications removed to prevent conflicts and crashes
 class NotificationService extends ChangeNotifier {
-  final FlutterLocalNotificationsPlugin _flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
-  bool _isInitialized = false;
+  static final NotificationService _instance = NotificationService._internal();
+  factory NotificationService() => _instance;
+  NotificationService._internal();
 
-  NotificationService() {
-    _initializeNotifications();
-  }
-
-  Future<void> _createNotificationChannel() async {
-    const AndroidNotificationChannel newReportsChannel = AndroidNotificationChannel(
-      'new_reports',
-      'Laporan Baru',
-      description: 'Notifikasi saat ada laporan baru',
-      importance: Importance.max,
-    );
-
-    const AndroidNotificationChannel statusUpdatesChannel = AndroidNotificationChannel(
-      'status_updates',
-      'Status Laporan',
-      description: 'Notifikasi saat status laporan berubah',
-      importance: Importance.high,
-    );
-
-    final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
-        FlutterLocalNotificationsPlugin();
-    
-    final androidPlugin = flutterLocalNotificationsPlugin
-        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
-    
-    await androidPlugin?.createNotificationChannel(newReportsChannel);
-    await androidPlugin?.createNotificationChannel(statusUpdatesChannel);
-    
-    developer.log('Notification channels created', name: 'NotificationService');
-  }
-
-  Future<void> _initializeNotifications() async {
-    try {
-      // Create notification channel for Android 8.0+
-      await _createNotificationChannel();
-      
-      // Use launcher_icon instead of ic_launcher for better app branding
-      const AndroidInitializationSettings initializationSettingsAndroid =
-          AndroidInitializationSettings('@mipmap/launcher_icon');
-
-      const DarwinInitializationSettings initializationSettingsIOS = DarwinInitializationSettings(
-        requestAlertPermission: true,
-        requestBadgePermission: true,
-        requestSoundPermission: true,
-      );
-
-      const InitializationSettings initializationSettings = InitializationSettings(
-        android: initializationSettingsAndroid,
-        iOS: initializationSettingsIOS,
-      );
-
-      await _flutterLocalNotificationsPlugin.initialize(
-        initializationSettings,
-      );
-
-      _isInitialized = true;
-      developer.log('Notification service initialized successfully', name: 'NotificationService');
-      
-      // Request permissions after initialization
-      await requestNotificationPermissions();
-    } catch (e) {
-      developer.log('Error initializing notification service: $e', name: 'NotificationService');
-    }
-  }
+  bool _isEnabled = true;
+  bool get isEnabled => _isEnabled;
   
+  // Keep track of shown notifications for deduplication (FCM only)
+  final Map<String, DateTime> _shownNotifications = {};
+  static const Duration _deduplicationWindow = Duration(seconds: 5);
+
+  Future<void> initialize() async {
+    developer.log('NotificationService initialized (FCM only mode)', name: 'NotificationService');
+  }
+
+  Future<void> requestPermissions() async {
+    try {
+      final status = await Permission.notification.request();
+      _isEnabled = status.isGranted;
+      developer.log('Notification permission: ${status.name}', name: 'NotificationService');
+      notifyListeners();
+    } catch (e) {
+      developer.log('Error requesting notification permission: $e', name: 'NotificationService');
+      _isEnabled = false;
+    }
+  }
+
+  /// Alias for requestPermissions() - for compatibility
   Future<bool> requestNotificationPermissions() async {
-    try {
-      // Check Android version and request appropriate permissions
-      final androidInfo = await _getAndroidInfo();
-      
-      if (androidInfo >= 33) {
-        // Android 13+ (API 33+) - Use permission_handler for better control
-        final status = await Permission.notification.request();
-        
-        if (status.isGranted) {
-          developer.log('Android 13+ notification permission granted', name: 'NotificationService');
-          return true;
-        } else if (status.isPermanentlyDenied) {
-          developer.log('Android 13+ notification permission permanently denied', name: 'NotificationService');
-          return false;
-        } else {
-          developer.log('Android 13+ notification permission denied', name: 'NotificationService');
-          return false;
-        }
-      }
-      
-      // Fallback for older Android versions
-      final android = _flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin>();
-      if (android != null) {
-        try {
-          final bool? granted = await android.requestNotificationsPermission();
-          developer.log('Android notification permission granted: $granted', name: 'NotificationService');
-          return granted ?? false;
-        } catch (e) {
-          developer.log('Could not request notification permission: $e', name: 'NotificationService');
-          // Fallback to checking if notifications are enabled
-          try {
-            final bool? enabled = await android.areNotificationsEnabled();
-            developer.log('Android notifications enabled (fallback check): $enabled', name: 'NotificationService');
-            return enabled ?? false;
-          } catch (e2) {
-            developer.log('Could not check notification status: $e2', name: 'NotificationService');
-            return false;
-          }
-        }
-      }
-      
-      // For iOS, permissions are requested during initialization
-      developer.log('Notification permissions requested successfully', name: 'NotificationService');
-      return true;
-    } catch (e) {
-      developer.log('Error requesting notification permissions: $e', name: 'NotificationService');
-      return false;
-    }
+    await requestPermissions();
+    return _isEnabled;
   }
 
-  Future<int> _getAndroidInfo() async {
-    try {
-      // Simple way to check if we're on Android 13+
-      return 33; // Assume modern Android for safety
-    } catch (e) {
-      return 30; // Fallback to older version
-    }
-  }
-
+  /// Check notification permissions status
   Future<bool> checkNotificationPermissions() async {
     try {
-      // First try using permission_handler for more accurate results
       final status = await Permission.notification.status;
-      
-      if (status.isGranted) {
-        return true;
-      } else if (status.isDenied || status.isPermanentlyDenied) {
-        return false;
-      }
-      
-      // Fallback to flutter_local_notifications method
-      final android = _flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin>();
-      if (android != null) {
-        try {
-          final bool? enabled = await android.areNotificationsEnabled();
-          developer.log('Android notifications enabled: $enabled', name: 'NotificationService');
-          return enabled ?? false;
-        } catch (e) {
-          developer.log('Could not check notification status: $e', name: 'NotificationService');
-          return false;
-        }
-      }
-      
-      // For iOS, assume permissions are granted if service is initialized
-      return _isInitialized;
+      _isEnabled = status.isGranted;
+      notifyListeners();
+      return status.isGranted;
     } catch (e) {
-      developer.log('Error checking notification permissions: $e', name: 'NotificationService');
+      developer.log('Error checking notification permission: $e', name: 'NotificationService');
       return false;
     }
   }
 
+  void enableNotifications() {
+    _isEnabled = true;
+    developer.log('Notifications enabled', name: 'NotificationService');
+    notifyListeners();
+  }
+
+  void disableNotifications() {
+    _isEnabled = false;
+    _shownNotifications.clear();
+    developer.log('Notifications disabled and cache cleared', name: 'NotificationService');
+    notifyListeners();
+  }
+
+  /// Check if notification should be shown (deduplication)
+  bool _shouldShowNotification(String notificationKey) {
+    if (!_isEnabled) {
+      developer.log('Notifications disabled, skipping: $notificationKey', name: 'NotificationService');
+      return false;
+    }
+
+    final now = DateTime.now();
+    
+    // Clean old entries
+    _shownNotifications.removeWhere((key, time) => 
+      now.difference(time) > _deduplicationWindow);
+    
+    // Check if this notification was recently shown
+    if (_shownNotifications.containsKey(notificationKey)) {
+      developer.log('Duplicate notification blocked: $notificationKey', name: 'NotificationService');
+      return false;
+    }
+    
+    // Mark as shown
+    _shownNotifications[notificationKey] = now;
+    return true;
+  }
+
+  /// Show new report notification (FCM only - no local notification)
   Future<void> showNewReportNotification(Report report) async {
-    // Check if we have permission before trying to show notification
-    final hasPermission = await checkNotificationPermissions();
-    if (!hasPermission) {
-      developer.log('No notification permission, skipping notification for report ${report.id}', name: 'NotificationService');
+    final notificationKey = 'new_report_${report.id}_${report.createdAt.millisecondsSinceEpoch}';
+    
+    if (!_shouldShowNotification(notificationKey)) {
       return;
     }
 
-    // Ensure initialization is complete before showing notification
-    if (!_isInitialized) {
-      developer.log('Notification service not initialized yet, retrying initialization', name: 'NotificationService');
-      try {
-        await _initializeNotifications();
-        await requestNotificationPermissions(); // Make sure permissions are granted
-      } catch (e) {
-        developer.log('Error during notification init retry: $e', name: 'NotificationService');
-      }
-      
-      // Double-check initialization status
-      if (!_isInitialized) {
-        developer.log('Failed to initialize notification service after retry', name: 'NotificationService');
-        // Try one more time with a delay - this helps in some Android environments
-        await Future.delayed(Duration(milliseconds: 500));
-        await _initializeNotifications();
-      }
-    }
-
-    try {
-      // Configure notification details optimized for foreground/background
-      final AndroidNotificationDetails androidNotificationDetails = AndroidNotificationDetails(
-        'new_reports',
-        'Laporan Baru',
-        channelDescription: 'Notifikasi saat ada laporan baru',
-        importance: Importance.max,
-        priority: Priority.high,
-        fullScreenIntent: true, // Will pop up even when screen is locked
-        visibility: NotificationVisibility.public,
-        ticker: 'Laporan baru masuk',
-        color: Color(0xFF6366F1), // Brand indigo color
-        enableLights: true,
-        ledColor: Color(0xFF6366F1),
-        ledOnMs: 1000,
-        ledOffMs: 500,
-        playSound: true,
-        enableVibration: false, // Disable vibration as requested
-        category: AndroidNotificationCategory.alarm, // Critical notification category
-        autoCancel: true, // Allow user to dismiss the notification
-        icon: '@mipmap/launcher_icon', // Use app icon instead of default
-      );
-
-      const DarwinNotificationDetails iOSNotificationDetails = DarwinNotificationDetails(
-        presentAlert: true,
-        presentBadge: true,
-        presentSound: true,
-      );
-
-      final NotificationDetails notificationDetails = NotificationDetails(
-        android: androidNotificationDetails,
-        iOS: iOSNotificationDetails,
-      );
-
-      // Show simplified notification with report type
-      String reportType = report.jenisLaporan?.toUpperCase() ?? 'LAPORAN BARU';
-      String address = report.address;
-      
-      await _flutterLocalNotificationsPlugin.show(
-        report.id,
-        'Laporan Baru Diterima',
-        '$reportType - $address',
-        notificationDetails,
-        payload: report.id.toString(),
-      );
-
-      developer.log('New report notification displayed for ID: ${report.id}', name: 'NotificationService');
-    } catch (e) {
-      developer.log('Error showing notification: $e', name: 'NotificationService');
-      
-      // Try to check and request permissions again
-      try {
-        final hasPermissionAfterError = await checkNotificationPermissions();
-        if (!hasPermissionAfterError) {
-          developer.log('Notification permission lost, attempting to re-request', name: 'NotificationService');
-          await requestNotificationPermissions();
-        }
-      } catch (permissionError) {
-        developer.log('Error checking notification permissions after notification failure: $permissionError', name: 'NotificationService');
-      }
-    }
+    developer.log(
+      'New report logged: ID=${report.id}, From=${report.userName}, Type=${report.jenisLaporan}',
+      name: 'NotificationService'
+    );
+    
+    // Only log - FCM will handle the actual notification display
+    notifyListeners();
   }
 
-  Future<void> showStatusUpdateNotification(int reportId, String status) async {
-    // Ensure initialization is complete before showing notification
-    if (!_isInitialized) {
-      await _initializeNotifications();
+  /// Show status update notification (FCM only - no local notification)
+  Future<void> showStatusUpdateNotification(String title, String body, {String? reportId}) async {
+    final notificationKey = 'status_${reportId ?? 'unknown'}_${DateTime.now().millisecondsSinceEpoch}';
+    
+    if (!_shouldShowNotification(notificationKey)) {
+      return;
     }
 
-    try {
-      // Map status to Indonesian display name
-      String statusDisplay = '';
-      Color statusColor = const Color(0xFF6366F1);
-      
-      switch (status.toLowerCase()) {
-        case 'pending':
-          statusDisplay = 'Menunggu';
-          statusColor = const Color(0xFFF59E0B);
-          break;
-        case 'processing':
-          statusDisplay = 'Sedang Diproses';
-          statusColor = const Color(0xFF3B82F6);
-          break;
-        case 'completed':
-          statusDisplay = 'Selesai';
-          statusColor = const Color(0xFF10B981);
-          break;
-        case 'rejected':
-          statusDisplay = 'Ditolak';
-          statusColor = const Color(0xFFEF4444);
-          break;
-        default:
-          statusDisplay = 'Status Berubah';
-          break;
-      }
+    developer.log(
+      'Status update logged: $title - $body',
+      name: 'NotificationService'
+    );
+    
+    // Only log - FCM will handle the actual notification display
+    notifyListeners();
+  }
 
-      final AndroidNotificationDetails androidNotificationDetails = AndroidNotificationDetails(
-        'status_updates',
-        'Status Laporan',
-        channelDescription: 'Notifikasi saat status laporan berubah',
-        importance: Importance.high,
-        priority: Priority.high,
-        color: statusColor,
-        enableLights: true,
-        ledColor: statusColor,
-        ledOnMs: 1000,
-        ledOffMs: 500,
-        playSound: true,
-        enableVibration: false, // Disable vibration as requested
-        icon: '@mipmap/launcher_icon', // Use app icon instead of default
-      );
+  /// Clear notification cache (useful on logout)
+  void clearNotificationCache() {
+    _shownNotifications.clear();
+    developer.log('Notification cache cleared', name: 'NotificationService');
+  }
 
-      const DarwinNotificationDetails iOSNotificationDetails = DarwinNotificationDetails(
-        presentAlert: true,
-        presentBadge: true,
-        presentSound: true,
-      );
-
-      final NotificationDetails notificationDetails = NotificationDetails(
-        android: androidNotificationDetails,
-        iOS: iOSNotificationDetails,
-      );
-
-      // Use a different ID for status updates to avoid overwriting report notifications
-      final notificationId = reportId + 10000; // Offset to avoid collision
-      
-      await _flutterLocalNotificationsPlugin.show(
-        notificationId,
-        'Status Laporan Diperbarui',
-        'Laporan #$reportId status sekarang: $statusDisplay',
-        notificationDetails,
-      );
-      
-      developer.log('Status update notification shown for report #$reportId: $status', name: 'NotificationService');
-    } catch (e) {
-      developer.log('Error showing status update notification: $e', name: 'NotificationService');
-    }
+  /// Get notification statistics
+  Map<String, dynamic> getStats() {
+    return {
+      'enabled': _isEnabled,
+      'recent_notifications': _shownNotifications.length,
+      'cache_window_seconds': _deduplicationWindow.inSeconds,
+    };
   }
 }
 
-final notificationServiceProvider = Provider<NotificationService>((ref) {
+// Provider for NotificationService
+final notificationServiceProvider = ChangeNotifierProvider<NotificationService>((ref) {
   return NotificationService();
 });
