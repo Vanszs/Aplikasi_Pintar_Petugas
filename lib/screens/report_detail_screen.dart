@@ -419,38 +419,151 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
           ).animate().fadeIn().slideY(begin: 0.2),
           
           const SizedBox(height: 20),
+
+          // Laporan Information Section
+          _buildSectionTitle('Informasi Laporan'),
+          const SizedBox(height: 12),
           
-          // Report Type Card
-          _buildInfoCard(
-            icon: Icons.report_problem_outlined,
-            title: 'Jenis Laporan',
-            content: report.getReportType(),
-            color: const Color(0xFF3B82F6),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 15,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Column(
+              children: [
+                _buildDetailRow(
+                  icon: Icons.category_outlined,
+                  label: 'Jenis Laporan',
+                  value: report.getReportType(),
+                  iconColor: const Color(0xFF3B82F6),
+                ),
+                const SizedBox(height: 16),
+                _buildDetailRow(
+                  icon: Icons.tag_outlined,
+                  label: 'ID Laporan',
+                  value: '#${report.id}',
+                  iconColor: const Color(0xFF6B7280),
+                ),
+                const SizedBox(height: 16),
+                _buildDetailRow(
+                  icon: Icons.access_time_outlined,
+                  label: 'Tanggal Laporan',
+                  value: report.formattedDate(),
+                  iconColor: const Color(0xFF10B981),
+                ),
+                const SizedBox(height: 16),
+                _buildDetailRow(
+                  icon: Icons.info_outline,
+                  label: 'Status',
+                  value: report.getStatusDisplay(),
+                  iconColor: report.getStatusColor(),
+                  valueColor: report.getStatusColor(),
+                ),
+              ],
+            ),
           ).animate().fadeIn(delay: const Duration(milliseconds: 100)).slideY(begin: 0.2),
           
-          const SizedBox(height: 16),
+          const SizedBox(height: 24),
+
+          // Lokasi Information Section
+          _buildSectionTitle('Lokasi Kejadian'),
+          const SizedBox(height: 12),
           
-          // Location Card  
-          _buildInfoCard(
-            icon: Icons.location_on_outlined,
-            title: 'Lokasi Kejadian',
-            content: report.address,
-            color: const Color(0xFF10B981),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 15,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Column(
+              children: [
+                _buildDetailRow(
+                  icon: Icons.location_on_outlined,
+                  label: 'Alamat Lengkap',
+                  value: report.address,
+                  iconColor: const Color(0xFFEF4444),
+                ),
+              ],
+            ),
           ).animate().fadeIn(delay: const Duration(milliseconds: 200)).slideY(begin: 0.2),
           
-          const SizedBox(height: 16),
+          const SizedBox(height: 24),
+
+          // Pelapor Information Section
+          _buildSectionTitle('Informasi Pelapor'),
+          const SizedBox(height: 12),
           
-          // Reporter Info Card
-          _buildInfoCard(
-            icon: Icons.person_outline_rounded,
-            title: 'Pelapor',
-            content: '${report.userName ?? 'Tidak diketahui'}\nID: #${report.userId}',
-            color: const Color(0xFF8B5CF6),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 15,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Column(
+              children: [
+                _buildDetailRow(
+                  icon: Icons.person_outline_rounded,
+                  label: 'Nama Pelapor',
+                  value: report.userName ?? 'Tidak diketahui',
+                  iconColor: const Color(0xFF3B82F6),
+                ),
+                const SizedBox(height: 16),
+                _buildDetailRow(
+                  icon: Icons.badge_outlined,
+                  label: 'ID Pelapor',
+                  value: '#${report.userId}',
+                  iconColor: const Color(0xFF6B7280),
+                ),
+                if (report.phone != null && report.phone != '-') ...[
+                  const SizedBox(height: 16),
+                  _buildDetailRow(
+                    icon: Icons.phone_outlined,
+                    label: 'Nomor Telepon',
+                    value: report.phone!,
+                    iconColor: const Color(0xFF10B981),
+                  ),
+                ] else ...[
+                  const SizedBox(height: 16),
+                  _buildDetailRow(
+                    icon: Icons.phone_disabled_outlined,
+                    label: 'Nomor Telepon',
+                    value: 'Tidak tersedia',
+                    iconColor: const Color(0xFF6B7280),
+                    valueColor: const Color(0xFF6B7280),
+                  ),
+                ],
+              ],
+            ),
           ).animate().fadeIn(delay: const Duration(milliseconds: 300)).slideY(begin: 0.2),
           
-          const SizedBox(height: 20),
-          
-          // Contact Button
+          const SizedBox(height: 24),
+
+          // Action Buttons Section
           if (report.phone != null && report.phone != '-')
             Container(
               width: double.infinity,
@@ -507,79 +620,74 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
                   ),
                 ),
               ),
-            ).animate().fadeIn(delay: const Duration(milliseconds: 400)).scale(),
+            ).animate().fadeIn(delay: const Duration(milliseconds: 500)).scale(),
+          
+          const SizedBox(height: 20),
         ],
       ),
     );
   }
 
-  Widget _buildInfoCard({
+  Widget _buildSectionTitle(String title) {
+    return Text(
+      title,
+      style: GoogleFonts.inter(
+        fontSize: 18,
+        fontWeight: FontWeight.bold,
+        color: const Color(0xFF1F2937),
+      ),
+    );
+  }
+
+  Widget _buildDetailRow({
     required IconData icon,
-    required String title,
-    required String content,
-    required Color color,
+    required String label,
+    required String value,
+    required Color iconColor,
+    Color? valueColor,
   }) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: color.withOpacity(0.1),
-          width: 1,
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: iconColor.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(
+            icon,
+            color: iconColor,
+            size: 20,
+          ),
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(
-              icon,
-              color: color,
-              size: 20,
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: GoogleFonts.inter(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: const Color(0xFF64748B),
-                  ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: GoogleFonts.inter(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: const Color(0xFF6B7280),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  content,
-                  style: GoogleFonts.inter(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w500,
-                    color: const Color(0xFF1E293B),
-                    height: 1.4,
-                  ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                value,
+                style: GoogleFonts.inter(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: valueColor ?? const Color(0xFF1F2937),
+                  height: 1.4,
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
