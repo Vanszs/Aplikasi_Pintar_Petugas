@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../utils/timezone_helper.dart';
 
 // Top-level background message handler
 @pragma('vm:entry-point')
@@ -40,6 +41,16 @@ class FCMService extends ChangeNotifier {
   final Map<String, DateTime> _recentFcmNotifications = {};
   static const Duration _fcmDeduplicationWindow = Duration(seconds: 5);
   
+  // Notification expiry settings - optimized for server TTL
+  static const Duration _notificationExpiryTime = Duration(seconds: 30); // 30 detik sesuai server
+  static const String _timestampKey = 'sent_at';
+  static const String _expiresAtKey = 'expires_at';
+  static const String _sessionIdKey = 'session_id';
+  
+  // Session tracking untuk mencegah notifikasi lama
+  String? _currentSessionId;
+  DateTime? _sessionStartTime;
+  
   // Getters
   bool get isInitialized => _isInitialized;
   String? get fcmToken => _fcmToken;
@@ -54,8 +65,8 @@ class FCMService extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Check if FCM notification should be shown (enhanced deduplication)
-  bool _shouldShowFcmNotification(String notificationKey) {
+  // Check if FCM notification should be shown (enhanced deduplication + session + expiry checking)
+  bool _shouldShowFcmNotification(String notificationKey, Map<String, dynamic> messageData) {
     if (!_notificationsEnabled) {
       developer.log('FCM notifications disabled, skipping: $notificationKey', name: 'FCMService');
       return false;
@@ -63,17 +74,62 @@ class FCMService extends ChangeNotifier {
 
     final now = DateTime.now();
     
-    // Clean old entries
+    // 1. Check expiry timestamp (dari server)
+    if (messageData.containsKey(_expiresAtKey)) {
+      try {
+        final expiresAtString = messageData[_expiresAtKey] as String;
+        final expiresAt = int.parse(expiresAtString);
+        final currentTime = now.millisecondsSinceEpoch;
+        
+        if (currentTime > expiresAt) {
+          developer.log('Notification expired (${(currentTime - expiresAt) / 1000} seconds ago), blocking: $notificationKey', name: 'FCMService');
+          return false;
+        }
+        
+        developer.log('Notification expires in ${(expiresAt - currentTime) / 1000} seconds for $notificationKey', name: 'FCMService');
+      } catch (e) {
+        developer.log('Error parsing expires_at for $notificationKey: $e', name: 'FCMService');
+      }
+    }
+    
+    // 2. Check session ID (untuk mencegah notifikasi dari session lama)
+    if (messageData.containsKey(_sessionIdKey) && _currentSessionId != null) {
+      final notificationSessionId = messageData[_sessionIdKey] as String?;
+      if (notificationSessionId != null && notificationSessionId != _currentSessionId) {
+        developer.log('Notification from old session ($notificationSessionId vs $_currentSessionId), blocking: $notificationKey', name: 'FCMService');
+        return false;
+      }
+    }
+    
+    // 3. Check if notification is too old (fallback timestamp checking)
+    if (messageData.containsKey(_timestampKey)) {
+      try {
+        final sentAtString = messageData[_timestampKey] as String;
+        
+        // Use TimezoneHelper to check if notification is too old
+        if (TimezoneHelper.isTimestampTooOld(sentAtString, _notificationExpiryTime)) {
+          final sentAt = DateTime.parse(sentAtString);
+          final now = TimezoneHelper.getNowJakarta();
+          final timeDifference = now.difference(sentAt);
+          developer.log('Notification too old (${timeDifference.inSeconds} seconds), blocking: $notificationKey', name: 'FCMService');
+          return false;
+        }
+      } catch (e) {
+        developer.log('Error parsing timestamp for $notificationKey: $e', name: 'FCMService');
+      }
+    }
+    
+    // 4. Clean old entries
     _recentFcmNotifications.removeWhere((key, time) => 
       now.difference(time) > _fcmDeduplicationWindow);
     
-    // Check if this notification was recently shown
+    // 5. Check if this notification was recently shown
     if (_recentFcmNotifications.containsKey(notificationKey)) {
       developer.log('Duplicate FCM notification blocked: $notificationKey', name: 'FCMService');
       return false;
     }
     
-    // Mark as shown
+    // 6. Mark as shown
     _recentFcmNotifications[notificationKey] = now;
     return true;
   }
@@ -125,6 +181,9 @@ class FCMService extends ChangeNotifier {
       // Get the token
       _fcmToken = await _firebaseMessaging.getToken();
       developer.log('FCM Token: $_fcmToken', name: 'FCMService');
+      
+      // Generate new session untuk mencegah notifikasi lama
+      _generateNewSession();
       
       // Save token to SharedPreferences
       if (_fcmToken != null) {
@@ -266,8 +325,8 @@ class FCMService extends ChangeNotifier {
         notificationKey = 'fcm_status_update_${data['reportId']}_${data['status'] ?? 'unknown'}';
       }
 
-      // Check deduplication before showing notification
-      if (_shouldShowFcmNotification(notificationKey)) {
+      // Check deduplication, expiry, and session before showing notification
+      if (_shouldShowFcmNotification(notificationKey, data)) {
         await _localNotifications.show(
           notification.hashCode,
           notification.title,
@@ -370,6 +429,13 @@ class FCMService extends ChangeNotifier {
         developer.log('Error in registerTokenIfAuthenticated: $e', name: 'FCMService');
       }
     }
+  }
+
+  // Method to generate new session when FCM token is registered
+  void _generateNewSession() {
+    _currentSessionId = 'session_${DateTime.now().millisecondsSinceEpoch}_${DateTime.now().microsecond}';
+    _sessionStartTime = DateTime.now();
+    developer.log('Generated new FCM session: $_currentSessionId', name: 'FCMService');
   }
 }
 

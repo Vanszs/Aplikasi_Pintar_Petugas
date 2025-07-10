@@ -1,9 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
-import 'package:http/http.dart' as http;
 import 'dart:developer' as developer;
-import '../models/user.dart';
+import 'package:http/http.dart' as http;
 import '../models/report.dart';
+import '../models/user.dart';
+import '../utils/timezone_helper.dart';
 
 class ApiService {
   final String baseUrl;
@@ -244,10 +245,11 @@ class ApiService {
 
   Future<Map<String, dynamic>> sendReport({
     String? name, 
-    required String address, 
-    required String phone, 
+    String? address, 
+    String? phone, 
     required String jenisLaporan,
-    String? rwNumber
+    String? rwNumber,
+    bool useAccountData = true,
   }) async {
     try {
       developer.log('Petugas sending report', name: 'ApiService');
@@ -270,26 +272,43 @@ class ApiService {
         };
       }
       
-      if (address.isEmpty) {
-        return {
-          'success': false,
-          'message': 'Alamat wajib diisi',
-        };
-      }
-      
-      if (phone.isEmpty) {
-        return {
-          'success': false,
-          'message': 'Nomor telepon wajib diisi',
-        };
+      // Validasi berdasarkan useAccountData
+      if (!useAccountData) {
+        // Jika tidak menggunakan data akun, address dan phone harus disediakan
+        if (address == null || address.isEmpty) {
+          return {
+            'success': false,
+            'message': 'Alamat wajib diisi',
+          };
+        }
+        
+        if (phone == null || phone.isEmpty) {
+          return {
+            'success': false,
+            'message': 'Nomor telepon wajib diisi',
+          };
+        }
       }
       
       // Tambahkan field-field ke request body
       requestBody['jenis_laporan'] = jenisLaporan;
-      requestBody['address'] = address;
-      requestBody['phone'] = phone;
-      requestBody['is_officer_report'] = true; // Tandai bahwa ini laporan dari petugas
-      requestBody['use_account_data'] = false; // Explicitly use the provided data, not account data
+      requestBody['use_account_data'] = useAccountData;
+      
+      // Tambahkan address dan phone jika disediakan (untuk custom data)
+      if (address != null && address.isNotEmpty) {
+        requestBody['address'] = address;
+      }
+      
+      if (phone != null && phone.isNotEmpty) {
+        requestBody['phone'] = phone;
+      }
+      
+      // Set flag untuk laporan petugas
+      requestBody['is_officer_report'] = true;
+      
+      // Tambahkan timestamp Jakarta (UTC+7)
+      final timestampData = TimezoneHelper.getTimestampData();
+      requestBody.addAll(timestampData);
       
       // Tambahkan field opsional jika tersedia
       if (rwNumber != null && rwNumber.isNotEmpty) {
@@ -344,6 +363,84 @@ class ApiService {
       }
     } catch (e) {
       developer.log('Error sending report: $e', name: 'ApiService');
+      return {
+        'success': false,
+        'message': 'Connection error: ${e.toString()}',
+      };
+    }
+  }
+
+  Future<Map<String, dynamic>> sendPetugasReport({
+    required String name,
+    required String address,
+    required String phone,
+    required String jenisLaporan,
+    String? rwNumber,
+  }) async {
+    try {
+      developer.log('Petugas sending report', name: 'ApiService');
+      
+      if (token == null) {
+        return {
+          'success': false,
+          'message': 'No authentication token',
+        };
+      }
+      
+      // Create request body
+      Map<String, dynamic> requestBody = {
+        'reporter_name': name,
+        'address': address,
+        'phone': phone,
+        'jenis_laporan': jenisLaporan,
+        'is_officer_report': true,
+        'use_account_data': false,
+      };
+      
+      // Tambahkan timestamp Jakarta (UTC+7)
+      final timestampData = TimezoneHelper.getTimestampData();
+      requestBody.addAll(timestampData);
+      
+      // Tambahkan RW jika ada
+      if (rwNumber != null && rwNumber.isNotEmpty) {
+        requestBody['rw'] = rwNumber;
+      }
+      
+      // Log request untuk debugging
+      developer.log('Petugas report request: ${requestBody.toString()}', name: 'ApiService');
+      
+      final body = jsonEncode(requestBody);
+      developer.log('Sending petugas report with body: $body', name: 'ApiService');
+      
+      final response = await http.post(
+        Uri.parse('$baseUrl/report'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: body,
+      ).timeout(const Duration(seconds: 15));
+      
+      developer.log('Petugas report API response status: ${response.statusCode}', name: 'ApiService');
+      developer.log('Petugas report API response body: ${response.body}', name: 'ApiService');
+      
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        developer.log('Petugas report sent successfully', name: 'ApiService');
+        return {
+          'success': true,
+          'report': data,
+        };
+      } else {
+        final data = jsonDecode(response.body);
+        developer.log('Failed to send petugas report: ${response.statusCode}', name: 'ApiService');
+        return {
+          'success': false,
+          'message': data['error'] ?? 'Failed to send report',
+        };
+      }
+    } catch (e) {
+      developer.log('Error sending petugas report: $e', name: 'ApiService');
       return {
         'success': false,
         'message': 'Connection error: ${e.toString()}',
@@ -427,14 +524,7 @@ class ApiService {
       
       if (response.statusCode == 200) {
         final List<dynamic> reportsJson = jsonDecode(response.body);
-        final List<Report> reports = reportsJson.map((json) => Report(
-          id: json['id'],
-          userId: json['user_id'] ?? 0, // Not always provided by API
-          address: json['address'] ?? 'Alamat tidak tersedia',
-          createdAt: DateTime.parse(json['created_at']),
-          userName: json['reporter_name'] ?? json['name'],
-          phone: json['phone'], // Properly handle phone field from API
-        )).toList();
+        final List<Report> reports = reportsJson.map((json) => Report.fromJson(json)).toList();
         
         developer.log('User reports fetched successfully', name: 'ApiService');
         return {
@@ -612,17 +702,7 @@ class ApiService {
           developer.log('Sample report keys: ${sampleReport.keys.toList()}', name: 'ApiService');
         }
         
-        final List<Report> reports = reportsJson.map((json) => Report(
-          id: json['id'] is int ? json['id'] : int.parse(json['id'].toString()),
-          userId: json['user_id'] != null 
-            ? (json['user_id'] is int ? json['user_id'] : int.parse(json['user_id'].toString())) 
-            : 0,
-          address: json['address'] ?? 'Alamat tidak tersedia',
-          createdAt: DateTime.parse(json['created_at']).toUtc().add(const Duration(hours: 7)),
-          userName: json['reporter_name'] ?? json['name'] ?? 'Tidak diketahui',
-          phone: json['phone'],
-          jenisLaporan: json['jenis_laporan'],
-        )).toList();
+        final List<Report> reports = reportsJson.map((json) => Report.fromJson(json)).toList();
         
         developer.log('All reports fetched successfully: ${reports.length} reports', name: 'ApiService');
         return {
@@ -727,18 +807,7 @@ class ApiService {
             developer.log('detail_laporan key does NOT exist', name: 'ApiService');
           }
           
-          final report = Report(
-            id: reportJson['id'] is int ? reportJson['id'] : int.parse(reportJson['id'].toString()),
-            userId: reportJson['user_id'] != null 
-              ? (reportJson['user_id'] is int ? reportJson['user_id'] : int.parse(reportJson['user_id'].toString())) 
-              : 0,
-            address: reportJson['address'] ?? 'Alamat tidak tersedia',
-            createdAt: DateTime.parse(reportJson['created_at']).toUtc().add(const Duration(hours: 7)),
-            userName: reportJson['reporter_name'] ?? reportJson['name'] ?? 'Tidak diketahui',
-            phone: reportJson['phone'],
-            jenisLaporan: reportJson['jenis_laporan'],
-            status: reportJson['status'] ?? 'pending', // Make sure to include status
-          );
+          final report = Report.fromJson(reportJson);
           
           developer.log('Report created with status: ${reportJson['status'] ?? 'pending'}', name: 'ApiService');
           
@@ -793,7 +862,8 @@ class ApiService {
       final allReports = await getAllReports();
       
       if (allReports['success'] && allReports['reports'] != null) {
-        final reports = allReports['reports'] as List<Report>;
+        final reportsList = allReports['reports'] as List<dynamic>;
+        final reports = reportsList.cast<Report>();
         final matchingReport = reports.where((r) => r.id == reportId).toList();
         
         if (matchingReport.isNotEmpty) {
