@@ -948,4 +948,51 @@ class ApiService {
     currentUsername = null;
     developer.log('Session cleared', name: 'ApiService');
   }
+
+  Future<Map<String, dynamic>> updateReportStatus(int reportId, String newStatus) async {
+    try {
+      developer.log('Updating report status: $reportId to $newStatus', name: 'ApiService');
+      
+      if (token == null) {
+        return {
+          'success': false,
+          'message': 'No authentication token',
+        };
+      }
+      
+      final response = await http.patch(
+        Uri.parse('$baseUrl/reports/$reportId/status'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'status': newStatus,
+        }),
+      ).timeout(const Duration(seconds: 10));
+      
+      developer.log('Update status response: ${response.statusCode}', name: 'ApiService');
+      developer.log('Update status body: ${response.body}', name: 'ApiService');
+      
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return {
+          'success': true,
+          'report': data,
+        };
+      } else {
+        final data = jsonDecode(response.body);
+        return {
+          'success': false,
+          'message': data['error'] ?? 'Failed to update status',
+        };
+      }
+    } catch (e) {
+      developer.log('Error updating report status: $e', name: 'ApiService');
+      return {
+        'success': false,
+        'message': 'Connection error: ${e.toString()}',
+      };
+    }
+  }
 }

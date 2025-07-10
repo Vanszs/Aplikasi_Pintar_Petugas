@@ -79,91 +79,140 @@ class _EnhancedNotificationStatusWidgetState extends ConsumerState<EnhancedNotif
     String title;
     String subtitle;
     IconData icon;
-    MaterialColor color;
+    Color color;
     
     if (!hasNotificationPermission) {
       title = 'Notifikasi Nonaktif';
       subtitle = 'Aktifkan untuk mendapat laporan real-time';
-      icon = Icons.notifications_off;
-      color = Colors.orange;
+      icon = Icons.notifications_off_rounded;
+      color = const Color(0xFFF59E0B);
     } else if (!_hasBatteryOptimization && widget.showBatteryOptimization) {
       title = 'Optimasi Baterai Aktif';
       subtitle = 'Nonaktifkan untuk performa background yang lebih baik';
-      icon = Icons.battery_alert;
-      color = Colors.amber;
+      icon = Icons.battery_alert_rounded;
+      color = const Color(0xFFEF4444);
     } else {
       return const SizedBox.shrink();
     }
     
-    return InkWell(
-      onTap: widget.onTap ?? () => _handleTap(context, hasNotificationPermission),
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: color.withOpacity(0.3),
-            width: 1,
-          ),
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            color.withOpacity(0.08),
+            color.withOpacity(0.03),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(
-                icon,
-                color: color[700],
-                size: 20,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      color: color[700],
-                      fontSize: 14,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: color.withOpacity(0.2),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: color.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: widget.onTap ?? () => _handleTap(context, hasNotificationPermission),
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: color.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(
+                        icon,
+                        color: color,
+                        size: 20,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: color[600],
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            title,
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              color: color,
+                              fontSize: 14,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            subtitle,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: color.withOpacity(0.8),
+                              height: 1.3,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (_isChecking)
+                      SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(color),
+                        ),
+                      )
+                    else
+                      Icon(
+                        Icons.arrow_forward_ios_rounded,
+                        size: 16,
+                        color: color.withOpacity(0.7),
+                      ),
+                  ],
+                ),
+                if (!hasNotificationPermission) ...[
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () => _handleTap(context, hasNotificationPermission),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: color,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      icon: const Icon(Icons.notifications_active_rounded, size: 18),
+                      label: const Text(
+                        'Aktifkan Notifikasi',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ),
                   ),
                 ],
-              ),
+              ],
             ),
-            if (_isChecking)
-              SizedBox(
-                width: 16,
-                height: 16,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(color),
-                ),
-              )
-            else
-              Icon(
-                Icons.arrow_forward_ios,
-                size: 16,
-                color: color[600],
-              ),
-          ],
+          ),
         ),
       ),
     );
@@ -188,12 +237,23 @@ class _EnhancedNotificationStatusWidgetState extends ConsumerState<EnhancedNotif
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            hasPermission 
-                ? 'Notifikasi telah diaktifkan! 🎉'
-                : 'Gagal mengaktifkan notifikasi. Coba lagi nanti.',
+          content: Row(
+            children: [
+              Icon(
+                hasPermission ? Icons.check_circle_outline : Icons.error_outline,
+                color: Colors.white,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                hasPermission 
+                    ? 'Notifikasi berhasil diaktifkan!'
+                    : 'Gagal mengaktifkan notifikasi',
+              ),
+            ],
           ),
-          backgroundColor: hasPermission ? Colors.green : Colors.red,
+          backgroundColor: hasPermission ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           duration: const Duration(seconds: 2),
         ),
       );
@@ -211,12 +271,23 @@ class _EnhancedNotificationStatusWidgetState extends ConsumerState<EnhancedNotif
         
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              status.isGranted 
-                  ? 'Optimasi baterai dinonaktifkan! ✅'
-                  : 'Optimasi baterai masih aktif. Anda dapat mengaturnya nanti.',
+            content: Row(
+              children: [
+                Icon(
+                  status.isGranted ? Icons.check_circle_outline : Icons.info_outline,
+                  color: Colors.white,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  status.isGranted 
+                      ? 'Optimasi baterai dinonaktifkan!'
+                      : 'Pengaturan bisa diubah nanti',
+                ),
+              ],
             ),
-            backgroundColor: status.isGranted ? Colors.green : Colors.orange,
+            backgroundColor: status.isGranted ? const Color(0xFF10B981) : const Color(0xFF3B82F6),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             duration: const Duration(seconds: 2),
           ),
         );
@@ -224,9 +295,17 @@ class _EnhancedNotificationStatusWidgetState extends ConsumerState<EnhancedNotif
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Error saat mengatur optimasi baterai'),
-            backgroundColor: Colors.red,
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.error_outline, color: Colors.white),
+                const SizedBox(width: 8),
+                const Text('Error saat mengatur optimasi baterai'),
+              ],
+            ),
+            backgroundColor: const Color(0xFFEF4444),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           ),
         );
       }

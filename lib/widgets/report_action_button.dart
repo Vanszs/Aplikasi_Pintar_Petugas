@@ -505,9 +505,19 @@ class _ReportConfirmationSheetState extends ConsumerState<_ReportConfirmationShe
                 padding: const EdgeInsets.all(16),
                 margin: const EdgeInsets.only(bottom: 20),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFEE2E2),
+                  gradient: LinearGradient(
+                    colors: [
+                      const Color(0xFFEF4444).withOpacity(0.1),
+                      const Color(0xFFB91C1C).withOpacity(0.05),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFEF4444).withOpacity(0.5)),
+                  border: Border.all(
+                    color: const Color(0xFFEF4444).withOpacity(0.2),
+                    width: 1,
+                  ),
                   boxShadow: [
                     BoxShadow(
                       color: const Color(0xFFEF4444).withOpacity(0.1),
@@ -516,17 +526,114 @@ class _ReportConfirmationSheetState extends ConsumerState<_ReportConfirmationShe
                     ),
                   ],
                 ),
-                child: Row(
+                child: Column(
                   children: [
-                    const Icon(Icons.wifi_off_outlined, color: Color(0xFFEF4444)),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        'Tidak ada koneksi internet. Laporan tidak dapat dikirim.',
-                        style: GoogleFonts.inter(
-                          fontSize: 13,
-                          color: const Color(0xFFB91C1C),
-                          fontWeight: FontWeight.w500,
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFEF4444).withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(
+                            Icons.wifi_off_outlined, 
+                            color: Color(0xFFEF4444),
+                            size: 20,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Tidak Ada Koneksi',
+                                style: GoogleFonts.inter(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: const Color(0xFFB91C1C),
+                                ),
+                              ),
+                              Text(
+                                'Laporan tidak dapat dikirim saat ini',
+                                style: GoogleFonts.inter(
+                                  fontSize: 12,
+                                  color: const Color(0xFFB91C1C).withOpacity(0.8),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () async {
+                          // Refresh connectivity check
+                          final connectivityService = ref.read(connectivityServiceProvider);
+                          await connectivityService.checkInternetConnection();
+                          
+                          if (mounted) {
+                            final newConnectionState = ref.read(connectivityServiceProvider).isConnected;
+                            if (newConnectionState) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Row(
+                                    children: [
+                                      const Icon(Icons.wifi_rounded, color: Colors.white),
+                                      const SizedBox(width: 8),
+                                      const Text('Koneksi berhasil dipulihkan!'),
+                                    ],
+                                  ),
+                                  backgroundColor: Colors.green,
+                                  behavior: SnackBarBehavior.floating,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                ),
+                              );
+                            } else {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Row(
+                                    children: [
+                                      const Icon(Icons.wifi_off_rounded, color: Colors.white),
+                                      const SizedBox(width: 8),
+                                      const Text('Koneksi masih belum tersedia'),
+                                    ],
+                                  ),
+                                  backgroundColor: const Color(0xFFEF4444),
+                                  behavior: SnackBarBehavior.floating,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                ),
+                              );
+                            }
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          foregroundColor: const Color(0xFFEF4444),
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            side: BorderSide(
+                              color: const Color(0xFFEF4444).withOpacity(0.3),
+                            ),
+                          ),
+                        ),
+                        icon: const Icon(Icons.refresh_rounded, size: 18),
+                        label: Text(
+                          'Coba Lagi',
+                          style: GoogleFonts.inter(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
                     ),

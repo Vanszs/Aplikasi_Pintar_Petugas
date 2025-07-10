@@ -332,18 +332,29 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Status Card
+          // Status Header Card
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: Colors.white,
+              gradient: LinearGradient(
+                colors: [
+                  report.getStatusColor().withOpacity(0.1),
+                  report.getStatusColor().withOpacity(0.05),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
               borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: report.getStatusColor().withOpacity(0.2),
+                width: 1,
+              ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, 2),
+                  color: report.getStatusColor().withOpacity(0.1),
+                  blurRadius: 15,
+                  offset: const Offset(0, 4),
                 ),
               ],
             ),
@@ -352,44 +363,53 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
                 Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.all(10),
+                      padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Colors.green.withOpacity(0.1),
-                        shape: BoxShape.circle,
+                        color: report.getStatusColor().withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                      child: const Icon(
-                        Icons.check_circle,
-                        color: Colors.green,
+                      child: Icon(
+                        Icons.assignment_turned_in_rounded,
+                        color: report.getStatusColor(),
+                        size: 24,
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 16),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Status Laporan',
+                            report.getStatusDisplay(),
+                            style: GoogleFonts.inter(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: report.getStatusColor(),
+                            ),
+                          ),
+                          Text(
+                            'Laporan #${report.id}',
                             style: GoogleFonts.inter(
                               fontSize: 14,
                               color: const Color(0xFF64748B),
                             ),
                           ),
-                          Text(
-                            report.getStatusDisplay(),
-                            style: GoogleFonts.inter(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: report.getStatusColor(),
-                            ),
-                          ),
                         ],
                       ),
                     ),
-                    Text(
-                      report.formattedDate(),
-                      style: GoogleFonts.inter(
-                        fontSize: 12,
-                        color: const Color(0xFF94A3B8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.8),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        report.formattedDate(),
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: const Color(0xFF1E293B),
+                        ),
                       ),
                     ),
                   ],
@@ -400,178 +420,218 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
           
           const SizedBox(height: 20),
           
-          // Report Info
-          _buildInfoSection(
-            'Detail Laporan',
-            [
-              _buildInfoRow('Jenis Laporan', report.getReportType()),
-              _buildInfoRow('ID Laporan', '#${report.id}'),
-              _buildInfoRow('Tanggal', report.formattedDate()),
-              _buildInfoRow('Alamat', report.address),
-            ],
+          // Report Type Card
+          _buildInfoCard(
+            icon: Icons.report_problem_outlined,
+            title: 'Jenis Laporan',
+            content: report.getReportType(),
+            color: const Color(0xFF3B82F6),
           ).animate().fadeIn(delay: const Duration(milliseconds: 100)).slideY(begin: 0.2),
           
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
           
-          // Reporter Info
-          _buildInfoSection(
-            'Informasi Pelapor',
-            [
-              _buildInfoRow('Nama', report.userName ?? 'Tidak diketahui'),
-              _buildInfoRow('ID Pelapor', '#${report.userId}'),
-              _buildInfoRow('Telepon', (report.phone != null && report.phone != '-') ? report.phone! : 'Tidak tersedia'),
-            ],
+          // Location Card  
+          _buildInfoCard(
+            icon: Icons.location_on_outlined,
+            title: 'Lokasi Kejadian',
+            content: report.address,
+            color: const Color(0xFF10B981),
           ).animate().fadeIn(delay: const Duration(milliseconds: 200)).slideY(begin: 0.2),
           
+          const SizedBox(height: 16),
+          
+          // Reporter Info Card
+          _buildInfoCard(
+            icon: Icons.person_outline_rounded,
+            title: 'Pelapor',
+            content: '${report.userName ?? 'Tidak diketahui'}\nID: #${report.userId}',
+            color: const Color(0xFF8B5CF6),
+          ).animate().fadeIn(delay: const Duration(milliseconds: 300)).slideY(begin: 0.2),
+          
           const SizedBox(height: 20),
           
-          // Action button - hubungi pelapor via WhatsApp
-          Container(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: () {
-                // Implementasi hubungi pelapor via WhatsApp
-                if (report.phone != null && report.phone != '-') {
-                  // Format nomor untuk WhatsApp: pastikan diawali dengan 628
-                  String phoneNumber = report.phone!.trim();
-                  
-                  // Hapus awalan +62 jika ada
-                  if (phoneNumber.startsWith('+62')) {
-                    phoneNumber = '62${phoneNumber.substring(3)}';
-                  } 
-                  // Hapus awalan 0 dan ganti dengan 62
-                  else if (phoneNumber.startsWith('0')) {
-                    phoneNumber = '62${phoneNumber.substring(1)}';
-                  }
-                  // Jika tidak diawali 62, tambahkan
-                  else if (!phoneNumber.startsWith('62')) {
-                    phoneNumber = '62$phoneNumber';
-                  }
-                  
-                  // Buka WhatsApp
-                  final whatsappUrl = 'https://wa.me/$phoneNumber';
-                  debugPrint('Opening WhatsApp with URL: $whatsappUrl');
-                  
-                  // Buka browser dengan URL WhatsApp
-                  Uri uri = Uri.parse(whatsappUrl);
-                  
-                  // Gunakan try-catch untuk menangani jika tidak bisa membuka WhatsApp
-                  try {
-                    launchUrl(uri, mode: LaunchMode.externalApplication).then((success) {
-                      if (!success) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Tidak dapat membuka WhatsApp, pastikan aplikasi sudah terpasang'),
-                            backgroundColor: Colors.red,
-                          ),
-                        );
-                      }
-                    });
-                  } catch (e) {
-                    debugPrint('Error opening WhatsApp: $e');
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Terjadi kesalahan saat membuka WhatsApp'),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                  }
-                  
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Membuka WhatsApp untuk nomor ${report.phone}'),
-                      backgroundColor: Colors.green,
-                    ),
-                  );
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Nomor telepon tidak tersedia'),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                }
-              },
-              icon: const Icon(Icons.chat),
-              label: const Text('Hubungi via WhatsApp'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF25D366), // Warna WhatsApp
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
+          // Contact Button
+          if (report.phone != null && report.phone != '-')
+            Container(
+              width: double.infinity,
+              height: 56,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF25D366), Color(0xFF128C7E)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF25D366).withOpacity(0.3),
+                    blurRadius: 15,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
+              ),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
                   borderRadius: BorderRadius.circular(12),
+                  onTap: () => _launchWhatsApp(report.phone!),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(
+                          Icons.chat_rounded,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 12),
+                        Text(
+                          'Hubungi via WhatsApp',
+                          style: GoogleFonts.inter(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          report.phone!,
+                          style: GoogleFonts.inter(
+                            fontSize: 14,
+                            color: Colors.white.withOpacity(0.9),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ),
-            ),
-          ).animate().fadeIn(delay: const Duration(milliseconds: 300)),
+            ).animate().fadeIn(delay: const Duration(milliseconds: 400)).scale(),
         ],
       ),
     );
   }
 
-  Widget _buildInfoSection(String title, List<Widget> children) {
+  Widget _buildInfoCard({
+    required IconData icon,
+    required String title,
+    required String content,
+    required Color color,
+  }) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: color.withOpacity(0.1),
+          width: 1,
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withOpacity(0.04),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
         ],
       ),
-      child: Column(
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title,
-            style: GoogleFonts.inter(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: const Color(0xFF1E293B),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(
+              icon,
+              color: color,
+              size: 20,
             ),
           ),
-          const Divider(height: 24),
-          ...children,
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFF64748B),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  content,
+                  style: GoogleFonts.inter(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500,
+                    color: const Color(0xFF1E293B),
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildInfoRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            flex: 2,
-            child: Text(
-              label,
-              style: GoogleFonts.inter(
-                fontSize: 14,
-                color: const Color(0xFF64748B),
-              ),
+  void _launchWhatsApp(String phone) {
+    // Format nomor untuk WhatsApp
+    String phoneNumber = phone.trim();
+    
+    if (phoneNumber.startsWith('+62')) {
+      phoneNumber = '62${phoneNumber.substring(3)}';
+    } else if (phoneNumber.startsWith('0')) {
+      phoneNumber = '62${phoneNumber.substring(1)}';
+    } else if (!phoneNumber.startsWith('62')) {
+      phoneNumber = '62$phoneNumber';
+    }
+    
+    final whatsappUrl = 'https://wa.me/$phoneNumber';
+    final uri = Uri.parse(whatsappUrl);
+    
+    launchUrl(uri, mode: LaunchMode.externalApplication).then((success) {
+      if (!success && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.error_outline, color: Colors.white),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text('Tidak dapat membuka WhatsApp'),
+                ),
+              ],
             ),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           ),
-          const SizedBox(width: 8),
-          Expanded(
-            flex: 3,
-            child: Text(
-              value,
-              style: GoogleFonts.inter(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                color: const Color(0xFF1E293B),
-              ),
+        );
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle_outline, color: Colors.white),
+                const SizedBox(width: 8),
+                Expanded(child: Text('Membuka WhatsApp untuk $phone')),
+              ],
             ),
+            backgroundColor: const Color(0xFF25D366),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           ),
-        ],
-      ),
-    );
+        );
+      }
+    });
   }
 }

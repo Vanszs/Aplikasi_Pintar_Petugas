@@ -507,6 +507,32 @@ class ReportNotifier extends StateNotifier<ReportState> {
     }
   }
 
+  // Public method to update report status
+  Future<bool> updateReportStatus(int reportId, String newStatus) async {
+    try {
+      developer.log('Updating report status: $reportId to $newStatus', name: 'ReportProvider');
+      
+      final result = await _apiService.updateReportStatus(reportId, newStatus);
+      
+      if (result['success']) {
+        // Update in state
+        _updateReportStatus(reportId, newStatus, result['report']);
+        return true;
+      } else {
+        state = state.copyWith(
+          errorMessage: result['message'] ?? 'Failed to update status',
+        );
+        return false;
+      }
+    } catch (e) {
+      developer.log('Error updating report status: $e', name: 'ReportProvider');
+      state = state.copyWith(
+        errorMessage: 'Error updating status: ${e.toString()}',
+      );
+      return false;
+    }
+  }
+
   // Method to clear socket listeners when user logs out
   void clearSocketListeners() {
     try {

@@ -11,7 +11,7 @@ import 'screens/contacts_screen.dart';
 import 'screens/guide_screen.dart';
 import 'screens/user_detail_screen.dart';
 import 'screens/user_stats_screen.dart';
-import 'screens/report_detail_screen.dart'; // Import screen detail laporan
+import 'screens/report_detail_screen.dart';
 import 'screens/officer_report_form_screen.dart'; // Import officer report form screen
 
 final navigatorKey = GlobalKey<NavigatorState>();
