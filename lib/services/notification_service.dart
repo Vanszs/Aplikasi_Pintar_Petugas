@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:vibration/vibration.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:developer' as developer;
-import 'dart:typed_data';
 import '../models/report.dart';
 
 class NotificationService extends ChangeNotifier {
@@ -111,20 +109,7 @@ class NotificationService extends ChangeNotifier {
     }
 
     try {
-      // Pertama, vibrate
-      await vibrate();
-
-      // Kemudian tampilkan notifikasi dengan pengaturan yang dioptimalkan untuk background
-      // Define vibration pattern
-      final vibrationPattern = Int64List(6);
-      vibrationPattern[0] = 0;
-      vibrationPattern[1] = 500;
-      vibrationPattern[2] = 200;
-      vibrationPattern[3] = 500;
-      vibrationPattern[4] = 200;
-      vibrationPattern[5] = 500;
-      
-      // Kemudian tampilkan notifikasi dengan pengaturan yang dioptimalkan untuk background
+      // Configure notification details optimized for foreground/background
       final AndroidNotificationDetails androidNotificationDetails = AndroidNotificationDetails(
         'new_reports',
         'Laporan Baru',
@@ -133,28 +118,22 @@ class NotificationService extends ChangeNotifier {
         priority: Priority.high,
         fullScreenIntent: true, // Will pop up even when screen is locked
         visibility: NotificationVisibility.public,
-        ticker: 'ticker',
-        color: Color(0xFF6366F1), // Warna brand indigo
+        ticker: 'Laporan baru masuk',
+        color: Color(0xFF6366F1), // Brand indigo color
         enableLights: true,
         ledColor: Color(0xFF6366F1),
         ledOnMs: 1000,
         ledOffMs: 500,
-        // Gunakan default sound
         playSound: true,
-        enableVibration: true,
-        vibrationPattern: vibrationPattern,
+        enableVibration: false, // Disable vibration as requested
         category: AndroidNotificationCategory.alarm, // Critical notification category
-        ongoing: true, // Make it persistent until user interacts with it
-        autoCancel: false, // Don't auto-cancel the notification
-        timeoutAfter: 300000, // 5 minutes in milliseconds
-        largeIcon: DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
+        autoCancel: true // Allow user to dismiss the notification
       );
 
       const DarwinNotificationDetails iOSNotificationDetails = DarwinNotificationDetails(
         presentAlert: true,
         presentBadge: true,
         presentSound: true,
-        // Gunakan default sound untuk iOS
       );
 
       final NotificationDetails notificationDetails = NotificationDetails(
@@ -162,43 +141,21 @@ class NotificationService extends ChangeNotifier {
         iOS: iOSNotificationDetails,
       );
 
-      // Simplified notification - just show report type as requested
+      // Show simplified notification with report type
+      String reportType = report.jenisLaporan?.toUpperCase() ?? 'LAPORAN BARU';
+      String address = report.address;
+      
       await _flutterLocalNotificationsPlugin.show(
         report.id,
-        'Laporan baru diterima',
-        report.getReportType().toUpperCase(),
+        'Laporan Baru Diterima',
+        '$reportType - $address',
         notificationDetails,
+        payload: report.id.toString(),
       );
 
       developer.log('New report notification displayed for ID: ${report.id}', name: 'NotificationService');
     } catch (e) {
       developer.log('Error showing notification: $e', name: 'NotificationService');
-    }
-  }
-
-  Future<void> vibrate() async {
-    try {
-      // Cek apakah device mendukung vibration
-      final hasVibrator = await Vibration.hasVibrator();
-      if (hasVibrator == true) {
-        // Multiple attempts to ensure vibration works
-        for (int i = 0; i < 2; i++) {
-          try {
-            // Pola getaran untuk notifikasi laporan baru - lebih kuat dan lebih lama
-            // [waktu tunggu ms, getaran ms, waktu tunggu ms, getaran ms]
-            await Vibration.vibrate(pattern: [0, 500, 200, 500, 200, 500]);
-            developer.log('Device vibrated for new report', name: 'NotificationService');
-            break; // Stop if successful
-          } catch (e) {
-            developer.log('Vibration attempt $i failed: $e', name: 'NotificationService');
-            await Future.delayed(Duration(milliseconds: 300)); // Wait before retry
-          }
-        }
-      } else {
-        developer.log('Device does not support vibration', name: 'NotificationService');
-      }
-    } catch (e) {
-      developer.log('Error during vibration: $e', name: 'NotificationService');
     }
   }
 }

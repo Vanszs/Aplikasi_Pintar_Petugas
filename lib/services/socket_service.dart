@@ -9,6 +9,8 @@ class SocketService extends ChangeNotifier {
   final String baseUrl;
   IO.Socket? _socket;
   bool _connected = false;
+  // Add a stream controller to notify listeners of new reports
+  List<Function(Report)> _reportCallbacks = [];
 
   SocketService({required this.baseUrl});
 
@@ -30,14 +32,27 @@ class SocketService extends ChangeNotifier {
         developer.log('Socket already connected, sending ping to verify connection', name: 'SocketService');
         try {
           _socket!.emit('ping', {'timestamp': DateTime.now().millisecondsSinceEpoch});
+          
+          // Set up ping response timeout
+          bool pingResponseReceived = false;
+          _socket!.once('pong', (_) {
+            pingResponseReceived = true;
+            developer.log('Received pong, connection is healthy', name: 'SocketService');
+          });
+          
+          // Wait briefly for pong response
+          await Future.delayed(Duration(seconds: 2));
+          
+          if (!pingResponseReceived) {
+            developer.log('No pong received, connection may be stale - reconnecting', name: 'SocketService');
+            _connected = false;
+          } else if (_connected) {
+            return; // Connection is healthy, no need to reconnect
+          }
         } catch (e) {
           developer.log('Error sending ping to verify connection: $e', name: 'SocketService');
           // If error during ping, connection might be stale, so reconnect anyway
           _connected = false;
-        }
-        
-        if (_connected) {
-          return;
         }
       }
       
@@ -59,7 +74,7 @@ class SocketService extends ChangeNotifier {
       // Connect directly to the IoT namespace as configured on the server
       developer.log('Creating socket connection to $baseUrl/iot namespace', name: 'SocketService');
       _socket = IO.io(baseUrl, <String, dynamic>{
-        'transports': ['websocket'],
+        'transports': ['websocket', 'polling'], // Allow fallback to polling if websocket fails
         'autoConnect': true,
         'reconnection': true,
         'reconnectionDelay': 1000,
@@ -68,7 +83,7 @@ class SocketService extends ChangeNotifier {
         'forceNew': true, // Always force new on manual connect
         'timeout': 20000, // Reduced timeout for faster failure detection
         'pingTimeout': 30000, // Ping timeout
-        'pingInterval': 15000, // More frequent ping interval
+        'pingInterval': 10000, // More frequent ping interval
         'path': '/socket.io', // Default socket.io path
         'extraHeaders': {
           'Connection': 'keep-alive',
@@ -82,6 +97,20 @@ class SocketService extends ChangeNotifier {
       
       // Start a periodic connectivity check to maintain connection
       _startPeriodicConnectionCheck();
+      
+      // Force a join to officer channel after connection
+      Future.delayed(Duration(seconds: 1), () {
+        try {
+          if (_connected && _socket != null) {
+            _socket!.emit('join_officer_channel', {});
+            developer.log('Sent join_officer_channel event after connect', name: 'SocketService');
+            // Re-register all existing report callbacks
+            _setupReportListener();
+          }
+        } catch (e) {
+          developer.log('Error sending join_officer_channel: $e', name: 'SocketService');
+        }
+      });
 
     } catch (e) {
       _connected = false;
@@ -169,28 +198,67 @@ class SocketService extends ChangeNotifier {
     }
   }
 
-  void listenForReports(Function(Report) onNewReport) {
+  // New method: Add report listener callback
+  void addReportListener(Function(Report) callback) {
+    _reportCallbacks.add(callback);
+    developer.log('Added report listener, total listeners: ${_reportCallbacks.length}', name: 'SocketService');
+    
+    // Setup the listener if not already done
+    _setupReportListener();
+  }
+  
+  // Setup report listener
+  void _setupReportListener() {
+    if (_socket == null) {
+      connect(); // Make sure socket is connected
+      return;
+    }
+    
+    // Setup new_report listener
     on('new_report', (data) {
       try {
         developer.log('Received new_report: $data', name: 'SocketService');
 
-        // Check if socket is still active before processing
-        if (_socket == null) return;
-
-        // Sesuaikan dengan format data dari backend
+        // Parse data from backend
         final report = Report(
           id: data['id'],
-          userId: 0, // Backend tidak mengirim user_id
-          address: data['address'],
-          createdAt: DateTime.parse(data['created_at']),
-          userName: data['name'],
+          userId: data['user_id'] ?? 0,
+          address: data['address'] ?? 'Alamat tidak diketahui',
+          createdAt: DateTime.parse(data['created_at'] ?? DateTime.now().toIso8601String()),
+          userName: data['name'] ?? data['reporter_name'] ?? 'Tanpa nama',
+          phone: data['phone'] ?? '-',
+          jenisLaporan: data['jenis_laporan'] ?? 'Umum',
         );
 
-        onNewReport(report);
+        developer.log('Parsed report: ID=${report.id}, From=${report.userName}, Type=${report.jenisLaporan}', 
+          name: 'SocketService');
+          
+        // Notify all registered callbacks
+        for (var callback in _reportCallbacks) {
+          try {
+            callback(report);
+          } catch (callbackError) {
+            developer.log('Error in report callback: $callbackError', name: 'SocketService');
+          }
+        }
+        
+        // Acknowledge receipt
+        emit('report_received', {
+          'report_id': report.id,
+          'timestamp': DateTime.now().millisecondsSinceEpoch
+        });
       } catch (e) {
         developer.log('Error parsing report data: $e', name: 'SocketService');
       }
     });
+    
+    // Join the officer channel to receive notifications for officers
+    try {
+      emit('join_officer_channel', {});
+      developer.log('Joined officer channel', name: 'SocketService');
+    } catch (e) {
+      developer.log('Error joining officer channel: $e', name: 'SocketService');
+    }
   }
 
   // Listen for app resume events and trigger a report refresh
@@ -203,6 +271,11 @@ class SocketService extends ChangeNotifier {
         developer.log('Error handling app_resume event: $e', name: 'SocketService');
       }
     });
+  }
+
+  // Legacy method for compatibility - uses the new addReportListener
+  void listenForReports(Function(Report) onNewReport) {
+    addReportListener(onNewReport);
   }
 
   // Setup socket listeners

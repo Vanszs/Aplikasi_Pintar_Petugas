@@ -12,6 +12,7 @@ class ReportState {
   final Map<String, dynamic>? globalStats;
   final Report? selectedReport;
   final bool isLoadingDetail;
+  final DateTime? lastUpdated; // Track when the data was last updated
 
   ReportState({
     this.reports = const [],
@@ -21,6 +22,7 @@ class ReportState {
     this.globalStats,
     this.selectedReport,
     this.isLoadingDetail = false,
+    this.lastUpdated,
   });
 
   ReportState copyWith({
@@ -31,6 +33,7 @@ class ReportState {
     Map<String, dynamic>? globalStats,
     Report? selectedReport,
     bool? isLoadingDetail,
+    DateTime? lastUpdated,
   }) {
     return ReportState(
       reports: reports ?? this.reports,
@@ -40,6 +43,7 @@ class ReportState {
       globalStats: globalStats ?? this.globalStats,
       selectedReport: selectedReport ?? this.selectedReport,
       isLoadingDetail: isLoadingDetail ?? this.isLoadingDetail,
+      lastUpdated: lastUpdated ?? this.lastUpdated,
     );
   }
 }
@@ -48,87 +52,106 @@ class ReportNotifier extends StateNotifier<ReportState> {
   final dynamic _apiService;
   final dynamic _socketService;
   late final NotificationService _notificationService;
+  final Ref _ref;
 
-  ReportNotifier(this._apiService, this._socketService, Ref ref) 
+  ReportNotifier(this._apiService, this._socketService, this._ref) 
       : super(ReportState()) {
-    _notificationService = ref.read(notificationServiceProvider);
-    _listenForReports();
+    _notificationService = _ref.read(notificationServiceProvider);
+    _setupSocketListeners();
     _listenForAppResume();
     _loadInitialData();
   }
 
-  void _listenForReports() {
+  void _setupSocketListeners() {
     try {
-      _socketService.on('new_report', (data) {
-        developer.log('New report received via socket: $data', name: 'ReportProvider');
-        
-        // Parse report data
-        try {
-          final report = Report(
-            id: data['id'],
-            userId: 0, // Backend tidak mengirim user_id
-            address: data['address'] ?? 'Alamat tidak diketahui',
-            createdAt: DateTime.parse(data['created_at'] ?? DateTime.now().toIso8601String()),
-            userName: data['name'] ?? 'Tanpa nama',
-            jenisLaporan: data['jenis_laporan'] ?? 'Umum',
-          );
-          
-          // Log data for debugging
-          developer.log('Processing report: ID=${report.id}, Type=${report.jenisLaporan}', name: 'ReportProvider');
-          
-          // Multiple attempts to ensure notification is shown, with increasing delays
-          // First attempt - immediate
-          _notificationService.showNewReportNotification(report);
-          
-          // Second attempt - short delay
-          Future.delayed(Duration(milliseconds: 500), () {
-            _notificationService.showNewReportNotification(report);
-          });
-          
-          // Third attempt - longer delay (helps with background notifications)
-          Future.delayed(Duration(seconds: 2), () {
-            _notificationService.showNewReportNotification(report);
-          });
-          
-          // Force reload reports when we receive a new one via socket
-          _retryLoadReports();
-          
-        } catch (parseError) {
-          developer.log('Error parsing socket report data: $parseError', name: 'ReportProvider');
-        }
-      });
+      // Use the improved callback system in socket_service
+      _socketService.addReportListener(_handleNewReport);
       
-      // Re-register for new_report event if socket reconnects
+      // Also listen for reconnection events
       _socketService.on('connect', (_) {
-        developer.log('Socket reconnected, re-registering for new_report events', name: 'ReportProvider');
-        
-        // Wait a moment for socket to fully initialize before registering listeners
-        Future.delayed(Duration(milliseconds: 500), () {
-          _listenForReports();
-        });
+        developer.log('Socket reconnected, refreshing data', name: 'ReportProvider');
+        // Reload reports on reconnection
+        loadAllReports();
       });
     } catch (e) {
-      developer.log('Error setting up socket listener: $e', name: 'ReportProvider');
+      developer.log('Error setting up socket listeners: $e', name: 'ReportProvider');
       
-      // Retry listener setup after delay
-      Future.delayed(Duration(seconds: 5), () {
-        _listenForReports();
+      // Retry after delay
+      Future.delayed(Duration(seconds: 3), () {
+        _setupSocketListeners();
       });
     }
   }
   
-  // Retry loading reports several times with increasing delays
-  void _retryLoadReports() {
+  // Handler for new reports from socket
+  void _handleNewReport(Report report) {
+    try {
+      developer.log('Received new report: ID=${report.id}, Type=${report.jenisLaporan}', name: 'ReportProvider');
+      
+      // Add report to state
+      _addNewReportToState(report);
+      
+      // Show notification
+      _notificationService.showNewReportNotification(report);
+    } catch (e) {
+      developer.log('Error handling new report: $e', name: 'ReportProvider');
+    }
+  }
+  
+  // Listen for app resume events
+  void _listenForAppResume() {
+    try {
+      _socketService.listenForAppResume(() {
+        developer.log('App resumed, refreshing report data', name: 'ReportProvider');
+        loadAllReports();
+      });
+    } catch (e) {
+      developer.log('Error setting up app resume listener: $e', name: 'ReportProvider');
+    }
+  }
+  
+  // Add new report to state without reloading everything
+  void _addNewReportToState(Report newReport) {
+    try {
+      // Check if report already exists in state
+      final existingIndex = state.reports.indexWhere((r) => r.id == newReport.id);
+      
+      if (existingIndex >= 0) {
+        // Update existing report if it exists
+        final updatedReports = List<Report>.from(state.reports);
+        updatedReports[existingIndex] = newReport;
+        
+        state = state.copyWith(
+          reports: updatedReports,
+          lastUpdated: DateTime.now(),
+        );
+        developer.log('Updated existing report in state: ID=${newReport.id}', name: 'ReportProvider');
+      } else {
+        // Add new report to the beginning of the list
+        final updatedReports = [newReport, ...state.reports];
+        
+        state = state.copyWith(
+          reports: updatedReports,
+          lastUpdated: DateTime.now(),
+        );
+        developer.log('Added new report to state: ID=${newReport.id}', name: 'ReportProvider');
+      }
+    } catch (e) {
+      developer.log('Error adding new report to state: $e', name: 'ReportProvider');
+      // Fall back to full reload if direct update fails
+      loadAllReports();
+    }
+  }
+  
+  // Retry loading reports with delay to ensure data is refreshed
+  Future<void> retryLoadReports() async {
     developer.log('Triggering report data refresh sequence', name: 'ReportProvider');
     
     // Immediate attempt
-    loadAllReports();
+    await loadAllReports();
     
-    // Additional attempts with varying delays to catch any network issues
-    Future.delayed(Duration(milliseconds: 500), () => loadAllReports());
+    // Additional attempt with delay to catch any network issues
     Future.delayed(Duration(seconds: 2), () => loadAllReports());
-    Future.delayed(Duration(seconds: 5), () => loadAllReports());
-    Future.delayed(Duration(seconds: 10), () => loadAllReports());
   }
 
   Future<void> _loadInitialData() async {
@@ -144,7 +167,7 @@ class ReportNotifier extends StateNotifier<ReportState> {
     state = ReportState();
   }
 
-  // Ubah untuk petugas: load semua laporan
+  // Load all reports for the officer
   Future<void> loadAllReports() async {
     developer.log('Loading all reports from API', name: 'ReportProvider');
     
@@ -163,13 +186,14 @@ class ReportNotifier extends StateNotifier<ReportState> {
         developer.log('Received ${newReports.length} reports from API', name: 'ReportProvider');
         
         // Check if we have new reports compared to current state
-        bool hasNewData = _hasNewOrUpdatedReports(state.reports, newReports);
+        bool hasNewData = state.reports.length != newReports.length;
         
         // Update state with new reports
         state = state.copyWith(
           reports: newReports,
           isLoading: false,
           errorMessage: null,
+          lastUpdated: DateTime.now(),
         );
         
         if (hasNewData) {
@@ -221,193 +245,154 @@ class ReportNotifier extends StateNotifier<ReportState> {
     }
   }
 
-  // Metode baru untuk mendapatkan detail laporan
-  Future<void> loadReportDetail(int reportId) async {
-    developer.log('Loading report detail for ID: $reportId', name: 'ReportProvider');
-    
-    // Reset state first and set loading state
-    state = state.copyWith(
-      selectedReport: null,
-      errorMessage: null,
-      isLoadingDetail: true
-    );
+  // Load user stats
+  Future<void> loadUserStats() async {
+    developer.log('Loading user stats', name: 'ReportProvider');
     
     try {
-      final result = await _apiService.getReportDetail(reportId);
-      
-      developer.log('API result received: ${result['success']}', name: 'ReportProvider');
+      final result = await _apiService.getUserStats();
       
       if (result['success']) {
-        final report = result['report'] as Report;
         state = state.copyWith(
-          selectedReport: report,
-          isLoadingDetail: false,
-          errorMessage: null,
+          userStats: result['data'],
         );
-        developer.log('Report detail loaded successfully: ID=${report.id}, Type=${report.jenisLaporan}', name: 'ReportProvider');
+        developer.log('User stats loaded successfully', name: 'ReportProvider');
       } else {
-        final errorMsg = result['message'] ?? 'Failed to load report detail';
-        state = state.copyWith(
-          isLoadingDetail: false,
-          errorMessage: errorMsg,
-        );
-        developer.log('Failed to load report detail: $errorMsg', name: 'ReportProvider');
+        developer.log('Failed to load user stats: ${result['message']}', name: 'ReportProvider');
       }
     } catch (e) {
-      final errorMsg = 'Error loading report detail: ${e.toString()}';
-      state = state.copyWith(
-        isLoadingDetail: false,
-        errorMessage: errorMsg,
-      );
-      developer.log('Exception in loadReportDetail: $e', name: 'ReportProvider');
-      rethrow; // Re-throw to allow UI to handle the error
+      developer.log('Error loading user stats: $e', name: 'ReportProvider');
     }
   }
 
-  // Mendukung fitur sementara untuk tetap kompatibel
-  Future<void> loadUserStats() async {
-    // Saat dijalankan oleh petugas, gunakan data global stats
-    return loadGlobalStats();
-  }
-
-  // Mengirimkan laporan oleh petugas
-  Future<bool> sendPetugasReport({
-    String? name,
-    required String address,
-    required String phone,
-    required String jenisLaporan,
-    String? rwNumber
-  }) async {
-    developer.log('Petugas mengirim laporan', name: 'ReportProvider');
+  // Load a specific report by ID
+  Future<void> loadReportById(int reportId) async {
+    developer.log('Loading report detail for ID: $reportId', name: 'ReportProvider');
     
-    state = state.copyWith(isLoading: true, errorMessage: null);
+    state = state.copyWith(isLoadingDetail: true);
     
     try {
-      developer.log('Sending officer report with data:', name: 'ReportProvider');
-      developer.log('Name: $name', name: 'ReportProvider');
-      developer.log('Address: $address', name: 'ReportProvider');
-      developer.log('Phone: $phone', name: 'ReportProvider');
-      developer.log('Jenis Laporan: $jenisLaporan', name: 'ReportProvider');
-      developer.log('RW Number: $rwNumber', name: 'ReportProvider');
+      final result = await _apiService.getReportById(reportId);
       
+      if (result['success']) {
+        state = state.copyWith(
+          selectedReport: result['report'],
+          isLoadingDetail: false,
+        );
+        developer.log('Report detail loaded successfully for ID: $reportId', name: 'ReportProvider');
+      } else {
+        state = state.copyWith(
+          isLoadingDetail: false,
+          errorMessage: result['message'],
+        );
+        developer.log('Failed to load report detail: ${result['message']}', name: 'ReportProvider');
+      }
+    } catch (e) {
+      state = state.copyWith(
+        isLoadingDetail: false,
+        errorMessage: 'Error loading report detail: ${e.toString()}',
+      );
+      developer.log('Error loading report detail: $e', name: 'ReportProvider');
+    }
+  }
+
+  // Alias for loadReportById to maintain compatibility with existing code
+  Future<void> loadReportDetail(int reportId) async {
+    return loadReportById(reportId);
+  }
+
+  // Send a new report from user
+  Future<bool> sendReport({
+    required String jenisLaporan,
+    String? address,
+    String? phone,
+    String? rwNumber,
+    bool useAccountData = true,
+  }) async {
+    developer.log('Sending new user report: $jenisLaporan', name: 'ReportProvider');
+    state = state.copyWith(isLoading: true);
+    
+    try {
       final result = await _apiService.sendReport(
-        name: name,
+        jenisLaporan: jenisLaporan,
         address: address,
         phone: phone,
-        jenisLaporan: jenisLaporan,
-        rwNumber: rwNumber
+        rwNumber: rwNumber,
+        useAccountData: useAccountData,
       );
       
       if (result['success']) {
-        developer.log('Laporan petugas berhasil dikirim', name: 'ReportProvider');
-        // Reload reports to include the new one
-        await loadAllReports();
+        // Refresh reports to show the newly added one
+        loadAllReports();
+        state = state.copyWith(
+          isLoading: false,
+          errorMessage: null,
+        );
+        developer.log('Report sent successfully', name: 'ReportProvider');
         return true;
       } else {
         state = state.copyWith(
           isLoading: false,
-          errorMessage: result['message'] ?? 'Gagal mengirim laporan',
+          errorMessage: result['message'] ?? 'Failed to send report',
         );
+        developer.log('Failed to send report: ${result['message']}', name: 'ReportProvider');
         return false;
       }
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
-        errorMessage: 'Error: ${e.toString()}',
+        errorMessage: 'Error sending report: ${e.toString()}',
       );
+      developer.log('Error sending report: $e', name: 'ReportProvider');
       return false;
     }
-  }
-  
-  // Backwards compatibility method
-  Future<bool> sendReport({String? name, String? address, String? phone, String? jenisLaporan, bool useAccountData = true}) async {
-    if (address == null || phone == null || jenisLaporan == null) {
-      state = state.copyWith(
-        errorMessage: 'Data laporan tidak lengkap',
-      );
-      return false;
-    }
-    
-    return sendPetugasReport(
-      name: name,
-      address: address,
-      phone: phone,
-      jenisLaporan: jenisLaporan
-    );
   }
 
-  void _listenForAppResume() {
+  // Send a new report from officer
+  Future<bool> sendPetugasReport({
+    required String name,
+    required String address,
+    required String phone,
+    required String jenisLaporan,
+    required String rwNumber,
+  }) async {
+    developer.log('Sending new officer report: $jenisLaporan', name: 'ReportProvider');
+    state = state.copyWith(isLoading: true);
+    
     try {
-      _socketService.listenForAppResume(() {
-        developer.log('⚡ CRITICAL: App resume detected, immediately reloading reports', name: 'ReportProvider');
-        
-        // Immediate aggressive reload sequence with multiple attempts
-        // This ensures we get fresh data when the app is brought back to foreground
-        loadAllReports();
-        
-        // Schedule multiple reload attempts with increasing delays
-        // to account for unstable network conditions when resuming
-        Future.delayed(Duration(milliseconds: 300), () => loadAllReports());
-        Future.delayed(Duration(milliseconds: 800), () => loadAllReports());
-        Future.delayed(Duration(seconds: 2), () => loadAllReports());
-        Future.delayed(Duration(seconds: 5), () => loadAllReports());
-      });
+      final result = await _apiService.sendPetugasReport(
+        name: name,
+        address: address,
+        phone: phone,
+        jenisLaporan: jenisLaporan,
+        rwNumber: rwNumber,
+      );
       
-      // Also listen for the global app resumed event from AppLifecycleObserver
-      _socketService.on('global:app_resumed', (_) {
-        developer.log('Global app resume event received, triggering refresh', name: 'ReportProvider');
+      if (result['success']) {
+        // Refresh reports to show the newly added one
         loadAllReports();
-      });
-    } catch (e) {
-      developer.log('Error setting up app resume listener: $e', name: 'ReportProvider');
-      
-      // Retry setting up the listener after a delay
-      Future.delayed(Duration(seconds: 2), () {
-        _listenForAppResume();
-      });
-    }
-  }
-
-  // Helper method to check if new reports contain any changes
-  bool _hasNewOrUpdatedReports(List<Report> oldReports, List<Report> newReports) {
-    // If count differs, we definitely have changes
-    if (oldReports.length != newReports.length) {
-      developer.log('Report count changed: ${oldReports.length} -> ${newReports.length}', name: 'ReportProvider');
-      return true;
-    }
-    
-    // Check if we have any new report IDs
-    final oldIds = oldReports.map((r) => r.id).toSet();
-    final newIds = newReports.map((r) => r.id).toSet();
-    
-    // If any ID exists in new but not in old, we have new reports
-    if (newIds.any((id) => !oldIds.contains(id))) {
-      developer.log('Found new report IDs', name: 'ReportProvider');
-      return true;
-    }
-    
-    // Compare timestamps to detect updates
-    for (final newReport in newReports) {
-      try {
-        // Find matching report by ID
-        final oldReport = oldReports.firstWhere(
-          (r) => r.id == newReport.id,
-          // This will throw if not found, which is caught by the try/catch
+        state = state.copyWith(
+          isLoading: false,
+          errorMessage: null,
         );
-        
-        // Compare timestamps if available
-        if (oldReport.createdAt != newReport.createdAt) {
-          developer.log('Report ${newReport.id} has updated timestamp', name: 'ReportProvider');
-          return true;
-        }
-      } catch (_) {
-        // If we can't find a matching report, it's new
-        developer.log('New report detected with ID: ${newReport.id}', name: 'ReportProvider');
+        developer.log('Officer report sent successfully', name: 'ReportProvider');
         return true;
+      } else {
+        state = state.copyWith(
+          isLoading: false,
+          errorMessage: result['message'] ?? 'Failed to send officer report',
+        );
+        developer.log('Failed to send officer report: ${result['message']}', name: 'ReportProvider');
+        return false;
       }
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: 'Error sending officer report: ${e.toString()}',
+      );
+      developer.log('Error sending officer report: $e', name: 'ReportProvider');
+      return false;
     }
-    
-    return false;
   }
 }
 

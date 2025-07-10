@@ -16,6 +16,7 @@ import 'services/dummy_socket_service.dart';
 import 'services/connectivity_service.dart';
 import 'providers/auth_provider.dart';
 import 'providers/report_provider.dart';
+import 'services/notification_service.dart';
 
 // Provider untuk menentukan mode dummy berdasarkan credential
 final isDummyModeProvider = StateProvider<bool>((ref) => false);
@@ -62,6 +63,9 @@ final socketServiceProvider = Provider<dynamic>((ref) {
   }
 });
 
+// Import notification service
+
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
@@ -106,6 +110,11 @@ void main() async {
           final socketService = ref.watch(socketServiceProvider);
           return ReportNotifier(apiService, socketService, ref);
         }),
+        
+        // Register notification service provider
+        notificationServiceProvider.overrideWithProvider(
+          Provider<NotificationService>((ref) => NotificationService())
+        ),
       ],
       child: const MyApp(),
     ),
