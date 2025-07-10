@@ -3,6 +3,7 @@ import 'dart:developer' as developer;
 import '../models/report.dart';
 import '../main.dart';
 import '../services/notification_service.dart';
+import 'auth_provider.dart';
 
 class ReportState {
   final List<Report> reports;
@@ -79,6 +80,13 @@ class ReportNotifier extends StateNotifier<ReportState> {
         try {
           developer.log('Received report_status_update: $data', name: 'ReportProvider');
           
+          // Check if user is still authenticated before processing
+          final authState = _ref.read(authProvider);
+          if (!authState.isAuthenticated) {
+            developer.log('User not authenticated, skipping status update notification', name: 'ReportProvider');
+            return;
+          }
+          
           // Extract report ID and status from event
           final reportId = data['report_id'];
           final status = data['status'];
@@ -87,7 +95,7 @@ class ReportNotifier extends StateNotifier<ReportState> {
             // Update the report in state
             _updateReportStatus(reportId, status, data['report']);
             
-            // Show notification for status update
+            // Show notification for status update only if authenticated
             _notificationService.showStatusUpdateNotification(reportId, status);
           }
         } catch (e) {
@@ -109,10 +117,17 @@ class ReportNotifier extends StateNotifier<ReportState> {
     try {
       developer.log('Received new report: ID=${report.id}, Type=${report.jenisLaporan}', name: 'ReportProvider');
       
+      // Check if user is still authenticated before processing
+      final authState = _ref.read(authProvider);
+      if (!authState.isAuthenticated) {
+        developer.log('User not authenticated, skipping report notification', name: 'ReportProvider');
+        return;
+      }
+      
       // Add report to state
       _addNewReportToState(report);
       
-      // Show notification
+      // Show notification only if user is authenticated
       _notificationService.showNewReportNotification(report);
     } catch (e) {
       developer.log('Error handling new report: $e', name: 'ReportProvider');
@@ -489,6 +504,27 @@ class ReportNotifier extends StateNotifier<ReportState> {
       }
     } catch (e) {
       developer.log('Error updating report status: $e', name: 'ReportProvider');
+    }
+  }
+
+  // Method to clear socket listeners when user logs out
+  void clearSocketListeners() {
+    try {
+      developer.log('Clearing socket listeners for logout', name: 'ReportProvider');
+      
+      // Clear specific socket event listeners
+      _socketService.off('connect');
+      _socketService.off('report_status_update');
+      
+      // Clear report listeners
+      _socketService.clearReportListeners();
+      
+      // Clear state
+      state = ReportState();
+      
+      developer.log('Socket listeners cleared and state reset', name: 'ReportProvider');
+    } catch (e) {
+      developer.log('Error clearing socket listeners: $e', name: 'ReportProvider');
     }
   }
 }

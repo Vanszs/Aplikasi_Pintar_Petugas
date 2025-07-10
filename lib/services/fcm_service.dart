@@ -1,4 +1,5 @@
 import 'dart:developer' as developer;
+import 'dart:convert';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
@@ -33,10 +34,17 @@ class FCMService extends ChangeNotifier {
   bool _isInitialized = false;
   String? _fcmToken;
   Function(String)? _onTokenRefresh;
+  bool _notificationsEnabled = true; // Track if notifications should be shown
   
   // Getters
   bool get isInitialized => _isInitialized;
   String? get fcmToken => _fcmToken;
+
+  // Method to enable/disable notifications
+  void setNotificationsEnabled(bool enabled) {
+    _notificationsEnabled = enabled;
+    developer.log('FCM notifications ${enabled ? 'enabled' : 'disabled'}', name: 'FCMService');
+  }
 
   // Method to set token refresh callback
   void setTokenRefreshCallback(Function(String)? callback) {
@@ -169,12 +177,15 @@ class FCMService extends ChangeNotifier {
     // You can navigate to specific screens based on the payload
   }
 
+  // Handle FCM foreground messages and show local notification
   void _handleForegroundMessage(RemoteMessage message) {
     developer.log('Got a message whilst in the foreground!', name: 'FCMService');
     developer.log('Message data: ${message.data}', name: 'FCMService');
 
     if (message.notification != null) {
       developer.log('Message also contained a notification: ${message.notification}', name: 'FCMService');
+      
+      // Show local notification for better customization
       _showLocalNotification(message);
     }
   }
@@ -198,20 +209,37 @@ class FCMService extends ChangeNotifier {
   Future<void> _showLocalNotification(RemoteMessage message) async {
     RemoteNotification? notification = message.notification;
 
-    if (notification != null && !kIsWeb) {
+    if (notification != null && !kIsWeb && _notificationsEnabled) {
+      // Use data from FCM message to determine notification type
+      final data = message.data;
+      String channelId = 'fcm_default_channel';
+      String channelName = 'FCM Notifications';
+      
+      // Customize channel based on notification type
+      if (data['type'] == 'new_report') {
+        channelId = 'new_reports';
+        channelName = 'Laporan Baru';
+      } else if (data['type'] == 'status_update') {
+        channelId = 'status_updates';
+        channelName = 'Status Laporan';
+      }
+
       await _localNotifications.show(
         notification.hashCode,
         notification.title,
         notification.body,
         NotificationDetails(
           android: AndroidNotificationDetails(
-            'fcm_default_channel',
-            'FCM Notifications',
+            channelId,
+            channelName,
             channelDescription: 'Firebase Cloud Messaging notifications',
             icon: '@mipmap/launcher_icon',
             importance: Importance.high,
             priority: Priority.high,
             color: const Color(0xFF4F46E5),
+            enableLights: true,
+            enableVibration: false,
+            playSound: true,
           ),
           iOS: const DarwinNotificationDetails(
             presentAlert: true,
@@ -219,8 +247,10 @@ class FCMService extends ChangeNotifier {
             presentSound: true,
           ),
         ),
-        payload: message.data.toString(),
+        payload: jsonEncode(message.data),
       );
+    } else if (!_notificationsEnabled) {
+      developer.log('FCM notification skipped - notifications disabled', name: 'FCMService');
     }
   }
 

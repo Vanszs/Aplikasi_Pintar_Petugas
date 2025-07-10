@@ -190,6 +190,33 @@ class SocketService extends ChangeNotifier {
     }
   }
 
+  void off(String event) {
+    try {
+      if (_socket != null) {
+        _socket!.off(event);
+        developer.log('Removed listener for event: $event', name: 'SocketService');
+      } else {
+        developer.log('Cannot remove listener: socket is null', name: 'SocketService');
+      }
+    } catch (e) {
+      developer.log('Error removing socket event listener: $e', name: 'SocketService');
+    }
+  }
+
+  void clearAllListeners() {
+    try {
+      if (_socket != null) {
+        _socket!.clearListeners();
+        developer.log('Cleared all socket listeners', name: 'SocketService');
+      }
+      
+      // Also clear report callbacks
+      clearReportListeners();
+    } catch (e) {
+      developer.log('Error clearing all socket listeners: $e', name: 'SocketService');
+    }
+  }
+
   void emit(String event, dynamic data) {
     try {
       if (_socket != null && _connected) {
@@ -212,6 +239,18 @@ class SocketService extends ChangeNotifier {
     _setupReportListener();
   }
   
+  // New method: Remove specific report listener callback
+  void removeReportListener(Function(Report) callback) {
+    _reportCallbacks.remove(callback);
+    developer.log('Removed report listener, total listeners: ${_reportCallbacks.length}', name: 'SocketService');
+  }
+  
+  // New method: Clear all report listeners
+  void clearReportListeners() {
+    _reportCallbacks.clear();
+    developer.log('Cleared all report listeners', name: 'SocketService');
+  }
+
   // Setup report listener
   void _setupReportListener() {
     if (_socket == null) {

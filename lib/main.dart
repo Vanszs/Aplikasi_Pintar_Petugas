@@ -373,6 +373,15 @@ class AutoSwitchingAuthNotifier extends AuthNotifier {
         
         developer.log('Login successful for user: $username', name: 'AutoSwitchingAuth');
         
+        // Enable FCM notifications after successful login
+        try {
+          final fcmService = _ref.read(fcmServiceProvider);
+          fcmService.setNotificationsEnabled(true);
+          developer.log('Enabled FCM notifications after login', name: 'AutoSwitchingAuth');
+        } catch (e) {
+          developer.log('Error enabling FCM notifications: $e', name: 'AutoSwitchingAuth');
+        }
+        
         // Register FCM token after successful login (for admin users only and not in dummy mode)
         if (user.isAdmin && !isDummy) {
           _registerFcmTokenAfterLogin(apiService);
@@ -441,6 +450,24 @@ class AutoSwitchingAuthNotifier extends AuthNotifier {
       // Clear stored authentication data
       await _clearStoredAuth();
       
+      // Clear socket listeners and notifications from report provider
+      try {
+        final reportNotifier = _ref.read(reportProvider.notifier);
+        reportNotifier.clearSocketListeners();
+        developer.log('Cleared socket listeners and notifications', name: 'AutoSwitchingAuth');
+      } catch (e) {
+        developer.log('Error clearing socket listeners: $e', name: 'AutoSwitchingAuth');
+      }
+      
+      // Disable FCM notifications
+      try {
+        final fcmService = _ref.read(fcmServiceProvider);
+        fcmService.setNotificationsEnabled(false);
+        developer.log('Disabled FCM notifications', name: 'AutoSwitchingAuth');
+      } catch (e) {
+        developer.log('Error disabling FCM notifications: $e', name: 'AutoSwitchingAuth');
+      }
+      
       // Reset to real mode
       _switchToMode(false);
       
@@ -456,6 +483,22 @@ class AutoSwitchingAuthNotifier extends AuthNotifier {
       
       // Reset API service session
       apiService.clearSession();
+      
+      // Try to clear socket listeners even on error
+      try {
+        final reportNotifier = _ref.read(reportProvider.notifier);
+        reportNotifier.clearSocketListeners();
+      } catch (cleanupError) {
+        developer.log('Error during cleanup: $cleanupError', name: 'AutoSwitchingAuth');
+      }
+      
+      // Try to disable FCM notifications even on error
+      try {
+        final fcmService = _ref.read(fcmServiceProvider);
+        fcmService.setNotificationsEnabled(false);
+      } catch (fcmError) {
+        developer.log('Error disabling FCM notifications during cleanup: $fcmError', name: 'AutoSwitchingAuth');
+      }
       
       // Reset to real mode
       _switchToMode(false);
