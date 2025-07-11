@@ -43,21 +43,21 @@ class _OfficerReportFormScreenState extends ConsumerState<OfficerReportFormScree
   Future<void> _submitReport() async {
     // Hide keyboard first for better UX
     FocusManager.instance.primaryFocus?.unfocus();
-    
+    // Validate form
     if (!_formKey.currentState!.validate()) {
+      setState(() {
+        _errorMessage = 'Pastikan semua data sudah diisi dengan benar.';
+      });
       return;
     }
-    
     setState(() {
       _isSubmitting = true;
       _errorMessage = null;
     });
-    
     try {
       final String jenisLaporan = _selectedJenisLaporan == 'lainnya'
           ? _customJenisLaporanController.text
           : _selectedJenisLaporan;
-      
       // Make sure phone number is properly formatted (remove any prefix if user added it)
       String phoneNumber = _phoneController.text.trim();
       if (phoneNumber.startsWith('+62')) {
@@ -65,14 +65,18 @@ class _OfficerReportFormScreenState extends ConsumerState<OfficerReportFormScree
       } else if (phoneNumber.startsWith('0')) {
         phoneNumber = phoneNumber.substring(1);
       }
-      
-      // Show debug logs to check values before sending
+      // Defensive: check user
       final authState = ref.read(authProvider);
       final user = authState.user;
       final userName = user?.name ?? 'Petugas';
-      debugPrint('Auth state: isAuthenticated=${authState.isAuthenticated}, user=${user?.toJson()}');
-      debugPrint('Sending report with name: $userName');
-      
+      if (userName.isEmpty) {
+        setState(() {
+          _isSubmitting = false;
+          _errorMessage = 'User tidak ditemukan, silakan login ulang.';
+        });
+        return;
+      }
+      // Try send report
       final success = await ref.read(reportProvider.notifier).sendPetugasReport(
         name: userName,
         address: _addressController.text,
@@ -81,15 +85,11 @@ class _OfficerReportFormScreenState extends ConsumerState<OfficerReportFormScree
         rwNumber: _selectedRW,
         isSirine: _isSirine,
       );
-      
       if (!mounted) return;
-      
       if (success) {
-        // Success animation before popping
         setState(() {
           _isSubmitting = false;
         });
-        
         // Show success dialog with animation
         showDialog(
           context: context,
@@ -143,16 +143,30 @@ class _OfficerReportFormScreenState extends ConsumerState<OfficerReportFormScree
       } else {
         setState(() {
           _isSubmitting = false;
-          _errorMessage = ref.read(reportProvider).errorMessage ?? 'Gagal mengirim laporan';
+          _errorMessage = ref.read(reportProvider).errorMessage ?? 'Gagal mengirim laporan, silakan coba lagi.';
         });
       }
-    } catch (e) {
+    } catch (e, stack) {
       if (!mounted) return;
-      
+      debugPrint('Error saat mengirim laporan: $e\n$stack');
       setState(() {
         _isSubmitting = false;
-        _errorMessage = 'Error: ${e.toString()}';
+        _errorMessage = 'Terjadi kesalahan, silakan coba lagi. (${e.toString()})';
       });
+      // Optional: tampilkan dialog error
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Error'),
+          content: Text('Terjadi kesalahan saat mengirim laporan. Silakan coba lagi.\n${e.toString()}'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Tutup'),
+            ),
+          ],
+        ),
+      );
     }
   }
 
