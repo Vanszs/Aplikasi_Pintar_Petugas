@@ -392,6 +392,7 @@ class ReportNotifier extends StateNotifier<ReportState> {
     required String phone,
     required String jenisLaporan,
     required String rwNumber,
+    required bool isSirine,
   }) async {
     developer.log('Sending new officer report: $jenisLaporan', name: 'ReportProvider');
     state = state.copyWith(isLoading: true);
@@ -403,6 +404,7 @@ class ReportNotifier extends StateNotifier<ReportState> {
         phone: phone,
         jenisLaporan: jenisLaporan,
         rwNumber: rwNumber,
+        isSirine: isSirine,
       );
       
       if (result['success']) {

@@ -30,6 +30,7 @@ class _OfficerReportFormScreenState extends ConsumerState<OfficerReportFormScree
   
   bool _isSubmitting = false;
   String? _errorMessage;
+  bool _isSirine = false;
   
   @override
   void dispose() {
@@ -78,6 +79,7 @@ class _OfficerReportFormScreenState extends ConsumerState<OfficerReportFormScree
         phone: phoneNumber,
         jenisLaporan: jenisLaporan,
         rwNumber: _selectedRW,
+        isSirine: _isSirine,
       );
       
       if (!mounted) return;
@@ -235,6 +237,8 @@ class _OfficerReportFormScreenState extends ConsumerState<OfficerReportFormScree
                         _buildModernPhoneSection().animate(delay: 300.ms).fadeIn(duration: 400.ms).slideY(begin: 0.1, end: 0),
                         const SizedBox(height: 20),
                         _buildModernRWSelector().animate(delay: 400.ms).fadeIn(duration: 400.ms).slideY(begin: 0.1, end: 0),
+                        const SizedBox(height: 20),
+                        _buildSirineToggle().animate(delay: 450.ms).fadeIn(duration: 400.ms).slideY(begin: 0.1, end: 0),
                         const SizedBox(height: 32),
                         
                         // Error Message
@@ -651,6 +655,52 @@ class _OfficerReportFormScreenState extends ConsumerState<OfficerReportFormScree
                   HapticFeedback.selectionClick();
                 },
               ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSirineToggle() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 15,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.speaker, color: _isSirine ? Color(0xFFEF4444) : Color(0xFF6366F1), size: 24),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Aktifkan Sirine', style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFF1E293B))),
+                Text('Nyalakan sirine saat laporan dikirim', style: GoogleFonts.inter(fontSize: 13, color: Color(0xFF64748B))),
+              ],
+            ),
+          ),
+          AnimatedSwitcher(
+            duration: Duration(milliseconds: 350),
+            transitionBuilder: (child, anim) => ScaleTransition(scale: anim, child: child),
+            child: Switch(
+              key: ValueKey(_isSirine),
+              value: _isSirine,
+              activeColor: Color(0xFFEF4444),
+              inactiveThumbColor: Color(0xFF6366F1),
+              onChanged: (val) {
+                setState(() => _isSirine = val);
+                HapticFeedback.lightImpact();
+              },
             ),
           ),
         ],

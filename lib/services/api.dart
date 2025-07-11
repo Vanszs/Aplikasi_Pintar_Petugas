@@ -376,6 +376,7 @@ class ApiService {
     required String phone,
     required String jenisLaporan,
     String? rwNumber,
+    required bool isSirine,
   }) async {
     try {
       developer.log('Petugas sending report', name: 'ApiService');
@@ -395,6 +396,7 @@ class ApiService {
         'jenis_laporan': jenisLaporan,
         'is_officer_report': true,
         'use_account_data': false,
+        'isSirine': isSirine ? 1 : 0,
       };
       
       // Tambahkan timestamp Jakarta (UTC+7)
