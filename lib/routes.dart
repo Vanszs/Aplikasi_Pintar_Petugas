@@ -95,6 +95,7 @@ final routerProvider = Provider<GoRouter>((ref) {
     ],
     redirect: (context, state) {
       // If app is checking authentication, show splash screen
+      
       if (state.matchedLocation == '/splash') return null;
 
       final isLoggedIn = authState.isAuthenticated;
