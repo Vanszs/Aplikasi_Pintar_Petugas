@@ -677,14 +677,18 @@ class ApiService {
   // Method baru untuk mendapatkan semua laporan (untuk petugas)
   Future<Map<String, dynamic>> getAllReports() async {
     try {
-      developer.log('Fetching all reports', name: 'ApiService');
+      developer.log('=== DEBUGGING getAllReports ===', name: 'ApiService');
+      developer.log('Fetching all reports from: $baseUrl/reports/all', name: 'ApiService');
       
       if (token == null) {
+        developer.log('ERROR: No authentication token available', name: 'ApiService');
         return {
           'success': false,
           'message': 'No authentication token',
         };
       }
+      
+      developer.log('Using token: ${token?.substring(0, 20)}...', name: 'ApiService');
       
       final response = await http.get(
         Uri.parse('$baseUrl/reports/all'),
@@ -694,33 +698,77 @@ class ApiService {
         },
       ).timeout(const Duration(seconds: 15));
       
+      developer.log('Response status code: ${response.statusCode}', name: 'ApiService');
+      developer.log('Response headers: ${response.headers}', name: 'ApiService');
+      developer.log('Response body length: ${response.body.length}', name: 'ApiService');
+      
       if (response.statusCode == 200) {
-        final List<dynamic> reportsJson = jsonDecode(response.body);
-        developer.log('Reports JSON: ${reportsJson.length} reports found', name: 'ApiService');
-        // Log sample report data for debugging
-        if (reportsJson.isNotEmpty) {
-          final sampleReport = reportsJson[0];
-          developer.log('Sample report: $sampleReport', name: 'ApiService');
-          developer.log('Sample report keys: ${sampleReport.keys.toList()}', name: 'ApiService');
+        try {
+          final List<dynamic> reportsJson = jsonDecode(response.body);
+          developer.log('Successfully parsed JSON: ${reportsJson.length} reports found', name: 'ApiService');
+          
+          // Log detailed sample report data for debugging
+          if (reportsJson.isNotEmpty) {
+            final sampleReport = reportsJson[0];
+            developer.log('=== SAMPLE REPORT DATA ===', name: 'ApiService');
+            developer.log('Sample report: $sampleReport', name: 'ApiService');
+            developer.log('Sample report keys: ${sampleReport.keys.toList()}', name: 'ApiService');
+            developer.log('Sample reporter_name: ${sampleReport['reporter_name']}', name: 'ApiService');
+            developer.log('Sample jenis_laporan: ${sampleReport['jenis_laporan']}', name: 'ApiService');
+            developer.log('Sample created_at: ${sampleReport['created_at']}', name: 'ApiService');
+            developer.log('Sample status: ${sampleReport['status']}', name: 'ApiService');
+            developer.log('=== END SAMPLE REPORT ===', name: 'ApiService');
+          } else {
+            developer.log('WARNING: No reports returned from backend', name: 'ApiService');
+          }
+          
+          final List<Report> reports = reportsJson.map((json) {
+            try {
+              final report = Report.fromJson(json);
+              developer.log('Successfully parsed report ID: ${report.id}, Type: ${report.jenisLaporan}, User: ${report.userName}', name: 'ApiService');
+              return report;
+            } catch (parseError) {
+              developer.log('ERROR parsing individual report: $parseError', name: 'ApiService');
+              developer.log('Problematic report data: $json', name: 'ApiService');
+              rethrow;
+            }
+          }).toList();
+          
+          developer.log('All reports parsed successfully: ${reports.length} reports', name: 'ApiService');
+          developer.log('=== END getAllReports DEBUG ===', name: 'ApiService');
+          
+          return {
+            'success': true,
+            'reports': reports,
+          };
+        } catch (parseError) {
+          developer.log('ERROR: Failed to parse JSON response: $parseError', name: 'ApiService');
+          developer.log('Raw response body: ${response.body}', name: 'ApiService');
+          return {
+            'success': false,
+            'message': 'Failed to parse response: ${parseError.toString()}',
+          };
         }
-        
-        final List<Report> reports = reportsJson.map((json) => Report.fromJson(json)).toList();
-        
-        developer.log('All reports fetched successfully: ${reports.length} reports', name: 'ApiService');
-        return {
-          'success': true,
-          'reports': reports,
-        };
       } else {
-        final data = jsonDecode(response.body);
-        developer.log('Failed to fetch all reports: ${response.statusCode}', name: 'ApiService');
-        return {
-          'success': false,
-          'message': data['error'] ?? 'Failed to fetch reports',
-        };
+        developer.log('ERROR: HTTP ${response.statusCode} response', name: 'ApiService');
+        developer.log('Error response body: ${response.body}', name: 'ApiService');
+        
+        try {
+          final data = jsonDecode(response.body);
+          return {
+            'success': false,
+            'message': data['error'] ?? 'Failed to fetch reports (HTTP ${response.statusCode})',
+          };
+        } catch (e) {
+          return {
+            'success': false,
+            'message': 'Failed to fetch reports (HTTP ${response.statusCode}): ${response.body}',
+          };
+        }
       }
     } catch (e) {
-      developer.log('Error fetching all reports: $e', name: 'ApiService');
+      developer.log('ERROR: Exception in getAllReports: $e', name: 'ApiService');
+      developer.log('Exception type: ${e.runtimeType}', name: 'ApiService');
       return {
         'success': false,
         'message': 'Connection error: ${e.toString()}',

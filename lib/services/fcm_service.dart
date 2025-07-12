@@ -3,7 +3,6 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -27,9 +26,6 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
 class FCMService extends ChangeNotifier {
   static final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
-  static final FlutterLocalNotificationsPlugin _localNotifications = 
-      FlutterLocalNotificationsPlugin();
-  
   bool _isInitialized = false;
   String? _fcmToken;
   Function(String)? _onTokenRefresh;
@@ -139,8 +135,6 @@ class FCMService extends ChangeNotifier {
         sound: true,
       );
 
-      // Initialize backup local notifications for foreground messages
-      await _initializeBackupNotifications();
 
       // Get the token
       _fcmToken = await _firebaseMessaging.getToken();
@@ -224,10 +218,6 @@ class FCMService extends ChangeNotifier {
       developer.log('No notification payload in message', name: 'FCMService');
     }
     
-    // Show backup notification for foreground messages to ensure they appear
-    // This ensures notifications show even if FCM foreground presentation fails
-    await _showBackupNotification(message);
-    
     // Process additional actions (like updating app state, triggering UI updates, etc.)
     _processMessageData(message);
     
@@ -254,96 +244,6 @@ class FCMService extends ChangeNotifier {
     // You can process additional data here if needed
   }
 
-  // Initialize backup local notifications for foreground messages only
-  Future<void> _initializeBackupNotifications() async {
-    try {
-      const AndroidInitializationSettings initializationSettingsAndroid =
-          AndroidInitializationSettings('@mipmap/launcher_icon');
-
-      const DarwinInitializationSettings initializationSettingsIOS =
-          DarwinInitializationSettings(
-        requestAlertPermission: false,
-        requestBadgePermission: false,
-        requestSoundPermission: false,
-      );
-
-      const InitializationSettings initializationSettings = InitializationSettings(
-        android: initializationSettingsAndroid,
-        iOS: initializationSettingsIOS,
-      );
-
-      await _localNotifications.initialize(initializationSettings);
-
-      // Create notification channel for Android
-      const AndroidNotificationChannel channel = AndroidNotificationChannel(
-        'fcm_foreground_channel',
-        'FCM Foreground Notifications',
-        description: 'Backup notifications for when app is open',
-        importance: Importance.high,
-      );
-
-      await _localNotifications
-          .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
-          ?.createNotificationChannel(channel);
-          
-      developer.log('Backup local notifications initialized', name: 'FCMService');
-    } catch (e) {
-      developer.log('Error initializing backup notifications: $e', name: 'FCMService');
-    }
-  }
-
-  // Show backup local notification for foreground messages
-  Future<void> _showBackupNotification(RemoteMessage message) async {
-    if (!_notificationsEnabled || kIsWeb) return;
-    
-    try {
-      final notification = message.notification;
-      final data = message.data;
-      
-      String title = notification?.title ?? 'Laporan Baru';
-      String body = notification?.body ?? 'Ada laporan baru untuk ditangani';
-      
-      // Create notification based on data if no notification payload
-      if (notification == null && data.isNotEmpty) {
-        if (data['type'] == 'new_report') {
-          title = 'Laporan Baru';
-          body = 'Ada laporan ${data['jenis_laporan'] ?? 'baru'} yang perlu ditangani';
-        } else if (data['type'] == 'status_update') {
-          title = 'Update Status Laporan';
-          body = 'Status laporan telah diperbarui';
-        }
-      }
-
-      await _localNotifications.show(
-        message.hashCode,
-        title,
-        body,
-        const NotificationDetails(
-          android: AndroidNotificationDetails(
-            'fcm_foreground_channel',
-            'FCM Foreground Notifications',
-            channelDescription: 'Backup notifications for when app is open',
-            icon: '@mipmap/launcher_icon',
-            importance: Importance.high,
-            priority: Priority.high,
-            color: Color(0xFF4F46E5),
-            enableLights: true,
-            enableVibration: true,
-            playSound: true,
-          ),
-          iOS: DarwinNotificationDetails(
-            presentAlert: true,
-            presentBadge: true,
-            presentSound: true,
-          ),
-        ),
-      );
-      
-      developer.log('Backup notification shown for foreground message', name: 'FCMService');
-    } catch (e) {
-      developer.log('Error showing backup notification: $e', name: 'FCMService');
-    }
-  }
 
   // Process message data for app state updates
   void _processMessageData(RemoteMessage message) {

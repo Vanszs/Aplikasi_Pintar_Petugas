@@ -119,6 +119,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
     final reportState = ref.watch(reportProvider);
     final reports = reportState.reports;
     final bottomSafePadding = MediaQuery.of(context).padding.bottom;
+    
+    // Add debugging logs for state tracking
+    debugPrint('=== HOME SCREEN BUILD DEBUG ===');
+    debugPrint('User: ${user?.name ?? 'null'}');
+    debugPrint('Report state - isLoading: ${reportState.isLoading}');
+    debugPrint('Report state - errorMessage: ${reportState.errorMessage}');
+    debugPrint('Report state - reports count: ${reports.length}');
+    debugPrint('Report state - lastUpdated: ${reportState.lastUpdated}');
+    if (reports.isNotEmpty) {
+      debugPrint('Latest report: ID=${reports.first.id}, Type=${reports.first.jenisLaporan}');
+    }
+    debugPrint('=== END HOME SCREEN BUILD DEBUG ===');
 
     return Scaffold(
       body: GradientBackground(
