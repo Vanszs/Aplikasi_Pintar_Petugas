@@ -205,45 +205,24 @@ class ReportNotifier extends StateNotifier<ReportState> {
 
   // Load all reports for the officer
   Future<void> loadAllReports() async {
-    developer.log('=== DEBUGGING loadAllReports ===', name: 'ReportProvider');
-    developer.log('Current state: ${state.reports.length} reports, isLoading: ${state.isLoading}', name: 'ReportProvider');
+    developer.log('Loading all reports from API', name: 'ReportProvider');
     
     // Only set isLoading if we don't already have reports
     // This prevents UI flicker when refreshing data
     if (state.reports.isEmpty) {
-      developer.log('Setting isLoading=true (no existing reports)', name: 'ReportProvider');
       state = state.copyWith(isLoading: true);
-    } else {
-      developer.log('Keeping isLoading=false (${state.reports.length} existing reports)', name: 'ReportProvider');
     }
     
     try {
       developer.log('Requesting getAllReports from API service', name: 'ReportProvider');
       final result = await _apiService.getAllReports();
       
-      developer.log('API result success: ${result['success']}', name: 'ReportProvider');
-      
       if (result['success']) {
         final newReports = result['reports'] as List<Report>;
         developer.log('Received ${newReports.length} reports from API', name: 'ReportProvider');
         
-        // Log details about the reports received
-        if (newReports.isNotEmpty) {
-          developer.log('=== FIRST 3 REPORTS DETAILS ===', name: 'ReportProvider');
-          for (int i = 0; i < newReports.length && i < 3; i++) {
-            final report = newReports[i];
-            developer.log('Report ${i + 1}: ID=${report.id}, Type=${report.jenisLaporan}, User=${report.userName}, Date=${report.formattedDate()}', name: 'ReportProvider');
-          }
-          developer.log('=== END REPORTS DETAILS ===', name: 'ReportProvider');
-        } else {
-          developer.log('WARNING: No reports received from API', name: 'ReportProvider');
-        }
-        
         // Check if we have new reports compared to current state
         bool hasNewData = state.reports.length != newReports.length;
-        
-        developer.log('Previous report count: ${state.reports.length}, New count: ${newReports.length}', name: 'ReportProvider');
-        developer.log('Has new data: $hasNewData', name: 'ReportProvider');
         
         // Update state with new reports
         state = state.copyWith(
@@ -253,15 +232,13 @@ class ReportNotifier extends StateNotifier<ReportState> {
           lastUpdated: DateTime.now(),
         );
         
-        developer.log('State updated successfully. New state has ${state.reports.length} reports', name: 'ReportProvider');
-        
         if (hasNewData) {
           developer.log('New or updated report data detected and loaded', name: 'ReportProvider');
         } else {
           developer.log('Reports loaded, no changes detected', name: 'ReportProvider');
         }
       } else {
-        developer.log('ERROR: API returned error: ${result['message']}', name: 'ReportProvider');
+        developer.log('API returned error: ${result['message']}', name: 'ReportProvider');
         
         // Don't clear existing reports on error, just update error state
         state = state.copyWith(
@@ -271,17 +248,12 @@ class ReportNotifier extends StateNotifier<ReportState> {
         developer.log('Failed to load all reports: ${result['message']}', name: 'ReportProvider');
       }
     } catch (e) {
-      developer.log('ERROR: Exception in loadAllReports: $e', name: 'ReportProvider');
-      developer.log('Exception type: ${e.runtimeType}', name: 'ReportProvider');
-      
       state = state.copyWith(
         isLoading: false,
         errorMessage: 'Error loading reports: ${e.toString()}',
       );
       developer.log('Error loading all reports: $e', name: 'ReportProvider');
     }
-    
-    developer.log('=== END loadAllReports DEBUG ===', name: 'ReportProvider');
   }
 
   // Tetap pertahankan untuk kompatibilitas

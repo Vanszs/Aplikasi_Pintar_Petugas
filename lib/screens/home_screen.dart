@@ -120,17 +120,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
     final reports = reportState.reports;
     final bottomSafePadding = MediaQuery.of(context).padding.bottom;
     
-    // Add debugging logs for state tracking
-    debugPrint('=== HOME SCREEN BUILD DEBUG ===');
-    debugPrint('User: ${user?.name ?? 'null'}');
-    debugPrint('Report state - isLoading: ${reportState.isLoading}');
-    debugPrint('Report state - errorMessage: ${reportState.errorMessage}');
-    debugPrint('Report state - reports count: ${reports.length}');
-    debugPrint('Report state - lastUpdated: ${reportState.lastUpdated}');
-    if (reports.isNotEmpty) {
-      debugPrint('Latest report: ID=${reports.first.id}, Type=${reports.first.jenisLaporan}');
-    }
-    debugPrint('=== END HOME SCREEN BUILD DEBUG ===');
 
     return Scaffold(
       body: GradientBackground(
@@ -515,7 +504,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFF1F5F9),
+        color: Colors.white, // Changed to white as requested
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Colors.grey.withOpacity(0.1)),
         boxShadow: [
@@ -527,7 +516,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
         ],
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        crossAxisAlignment: CrossAxisAlignment.center, // Centered content
+        mainAxisAlignment: MainAxisAlignment.center, // Centered content vertically
         children: [
           Lottie.asset(
             'assets/animations/empty.json',
@@ -536,36 +526,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
             fit: BoxFit.contain,
           ),
           const SizedBox(height: 16),
-          Container(
-            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.02),
-                  blurRadius: 4,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Text(
-              'Belum Ada Laporan',
-              textAlign: TextAlign.left,
-              style: GoogleFonts.inter(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: const Color(0xFF1F2937),
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
+          Text( // Kept only this text
             'Belum ada laporan yang dikirimkan warga saat ini.',
             textAlign: TextAlign.center,
             style: GoogleFonts.inter(
               fontSize: 14,
-              color: const Color(0xFF64748B),
+              fontWeight: FontWeight.w600, // Made it bold for better visibility
+              color: const Color(0xFF1F2937), // Changed color to match header
             ),
           ),
         ],

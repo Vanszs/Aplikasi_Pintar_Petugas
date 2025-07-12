@@ -204,7 +204,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                 height: 180,
                 width: 180,
                 child: LottieBuilder.asset(
-                  'assets/animations/empty.lottie', // Using the empty.lottie file
+                  'assets/animations/empty.json', // Using the empty.lottie file
                   fit: BoxFit.contain,
                   repeat: true,
                 ),
