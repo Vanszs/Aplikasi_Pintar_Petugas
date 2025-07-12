@@ -106,7 +106,7 @@ class ReportNotifier extends StateNotifier<ReportState> {
       developer.log('Error setting up socket listeners: $e', name: 'ReportProvider');
       
       // Retry after delay
-      Future.delayed(Duration(seconds: 3), () {
+      Future.delayed(const Duration(seconds: 3), () {
         _setupSocketListeners();
       });
     }
@@ -187,7 +187,7 @@ class ReportNotifier extends StateNotifier<ReportState> {
     await loadAllReports();
     
     // Additional attempt with delay to catch any network issues
-    Future.delayed(Duration(seconds: 2), () => loadAllReports());
+    Future.delayed(const Duration(seconds: 2), () => loadAllReports());
   }
 
   Future<void> _loadInitialData() async {

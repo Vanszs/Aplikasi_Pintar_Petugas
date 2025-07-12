@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
 import '../models/user.dart';
-import '../services/api.dart';
 import '../main.dart';
 import '../widgets/gradient_background.dart';
 
@@ -144,7 +143,7 @@ class _UserDetailScreenState extends ConsumerState<UserDetailScreen> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 5, offset: const Offset(0, 2)),
+          BoxShadow(color: const Color.fromRGBO(0, 0, 0, 0.05), blurRadius: 5, offset: const Offset(0, 2)),
         ],
       ),
       child: Row(

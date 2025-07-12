@@ -171,7 +171,7 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Theme.of(context).primaryColor.withOpacity(0.1),
+              color: Theme.of(context).primaryColor.withAlpha(26),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(Icons.support_agent, color: Theme.of(context).primaryColor, size: 24),
@@ -252,10 +252,10 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: color.withOpacity(0.2)),
+            border: Border.all(color: color.withAlpha(51)),
             boxShadow: [
               BoxShadow(
-                color: color.withOpacity(0.1),
+                color: color.withAlpha(26),
                 blurRadius: 8,
                 offset: const Offset(0, 2),
               ),
@@ -309,10 +309,10 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.grey.withOpacity(0.2)),
+              border: Border.all(color: Colors.grey.withAlpha(51)),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.03),
+                  color: const Color.fromRGBO(0, 0, 0, 0.03),
                   blurRadius: 8,
                   offset: const Offset(0, 2),
                 ),
@@ -323,7 +323,7 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Theme.of(context).primaryColor.withOpacity(0.1),
+                    color: Theme.of(context).primaryColor.withAlpha(26),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(icon, color: Theme.of(context).primaryColor, size: 24),
@@ -354,7 +354,7 @@ class _ContactsScreenState extends ConsumerState<ContactsScreen> {
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: Theme.of(context).primaryColor.withOpacity(0.1),
+                    color: Theme.of(context).primaryColor.withAlpha(26),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(Icons.call, color: Theme.of(context).primaryColor, size: 20),

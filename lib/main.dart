@@ -326,7 +326,7 @@ class _MyAppState extends ConsumerState<MyApp> {
 
 // Simplified AutoSwitchingAuthNotifier
 class AutoSwitchingAuthNotifier extends AuthNotifier {
-  final StateNotifierProviderRef<AuthNotifier, AuthState> _ref;
+  final Ref _ref;
   final SharedPreferences _prefs;
 
   AutoSwitchingAuthNotifier(this._ref, this._prefs, String serverUrl) 
@@ -619,7 +619,7 @@ class AppLifecycleObserver with WidgetsBindingObserver {
         socketService.connect();
         
         // Delay very slightly to allow socket to connect
-        Future.delayed(Duration(milliseconds: 300), () {
+        Future.delayed(const Duration(milliseconds: 300), () {
           // Force reload report data with high priority
           developer.log('CRITICAL: Forcing data refresh now', name: 'AppLifecycleObserver');
           _forceReloadReports();
@@ -722,9 +722,9 @@ class AppLifecycleObserver with WidgetsBindingObserver {
     });
     
     // Additional attempts with delays to ensure refresh happens
-    Future.delayed(Duration(milliseconds: 500), _sendRefreshRequest);
-    Future.delayed(Duration(seconds: 1), _sendRefreshRequest);
-    Future.delayed(Duration(seconds: 3), _sendRefreshRequest);
+    Future.delayed(const Duration(milliseconds: 500), _sendRefreshRequest);
+    Future.delayed(const Duration(seconds: 1), _sendRefreshRequest);
+    Future.delayed(const Duration(seconds: 3), _sendRefreshRequest);
   }
   
   void _sendRefreshRequest() {

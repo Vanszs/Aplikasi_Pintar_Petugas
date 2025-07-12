@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
-import '../widgets/animated_app_bar.dart';
 import '../widgets/gradient_background.dart';
 
 class InfoDaftarScreen extends StatelessWidget {

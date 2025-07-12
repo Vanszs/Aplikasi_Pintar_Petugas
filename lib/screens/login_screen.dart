@@ -34,25 +34,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
 
     setState(() => _isLoggingIn = true);
 
-    try {
-      // Direct login without credential check
-      final success = await ref.read(authProvider.notifier).login(
-        _usernameController.text.trim(),
-        _passwordController.text,
-      );
+    final success = await ref.read(authProvider.notifier).login(
+      _usernameController.text.trim(),
+      _passwordController.text,
+    );
 
-      if (mounted) {
-        setState(() => _isLoggingIn = false);
-      }
+    if (mounted) {
+      setState(() => _isLoggingIn = false);
+    }
 
-      if (success && mounted) {
-        context.go('/home');
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() => _isLoggingIn = false);
-        ref.read(authProvider.notifier).setErrorMessage('Terjadi kesalahan. Silakan coba lagi.');
-      }
+    if (success && mounted) {
+      context.go('/home');
     }
   }
 
@@ -129,7 +121,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
               borderRadius: BorderRadius.circular(20),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
+                  color: const Color.fromRGBO(0, 0, 0, 0.1),
                   blurRadius: 20,
                   spreadRadius: 2,
                   offset: const Offset(0, 8),
@@ -183,7 +175,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFF005DFF), width: 2),
+          borderSide: const BorderSide(color: Color(0xFF4F46E5), width: 2),
         ),
       ),
       validator: (value) {
@@ -227,7 +219,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFF005DFF), width: 2),
+          borderSide: const BorderSide(color: Color(0xFF4F46E5), width: 2),
         ),
       ),
       validator: (value) {

@@ -36,9 +36,9 @@ class ExampleScreenWithNotificationStatus extends ConsumerWidget {
           Expanded(
             child: ListView(
               padding: const EdgeInsets.all(16),
-              children: [
+              children: const [
                 // Your existing widgets...
-                const Card(
+                Card(
                   child: ListTile(
                     title: Text('Sample Content'),
                     subtitle: Text('Your existing screen content goes here'),

@@ -3,9 +3,8 @@ import 'package:intl/intl.dart';
 class TimezoneHelper {
   /// Get current DateTime in Jakarta timezone (UTC+7)
   static DateTime getNowJakarta() {
-    final now = DateTime.now();
-    // Convert to UTC+7 (Jakarta timezone)
-    return now.add(const Duration(hours: 7)).toUtc().add(const Duration(hours: 7));
+    // Get current UTC time and add 7 hours for Jakarta timezone
+    return DateTime.now().toUtc().add(const Duration(hours: 7));
   }
   
   /// Convert any DateTime to Jakarta timezone (UTC+7)

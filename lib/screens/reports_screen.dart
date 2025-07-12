@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:intl/intl.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:lottie/lottie.dart';
 import '../models/report.dart';
 import '../providers/report_provider.dart';
 import '../widgets/gradient_background.dart';
+import '../widgets/report_card.dart';
 
 class ReportsScreen extends ConsumerStatefulWidget {
   const ReportsScreen({super.key});
@@ -262,7 +262,10 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
             itemCount: paginatedReports.length,
             itemBuilder: (context, index) {
               final report = paginatedReports[index];
-              return _buildReportCard(report, index);
+              return ReportCard(
+                report: report,
+                onTap: () => context.push('/report-detail/${report.id}'),
+              );
             },
           ),
         ),
@@ -361,189 +364,4 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     );
   }
 
-  Widget _buildReportCard(Report report, int index) {
-    return InkWell(
-      onTap: () {
-        // Navigate to report detail
-        context.push('/report-detail/${report.id}');
-      },
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.grey.withAlpha(51)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withAlpha(20),
-              blurRadius: 8,
-              offset: const Offset(0, 3),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF6366F1).withAlpha(26),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Center(
-                      child: Text(
-                        '#${report.id}',
-                        style: GoogleFonts.inter(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: const Color(0xFF6366F1),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          report.jenisLaporan != null 
-                              ? report.jenisLaporan![0].toUpperCase() + report.jenisLaporan!.substring(1)
-                              : 'Laporan Darurat',
-                          style: GoogleFonts.inter(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: const Color(0xFF1F2937),
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        // Show reporter's name if available
-                        if (report.userName != null && report.userName!.isNotEmpty)
-                          Text(
-                            'Pelapor: ${report.userName}',
-                            style: GoogleFonts.inter(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                              color: const Color(0xFF4B5563),
-                            ),
-                          ),
-                        const SizedBox(height: 2),
-                        Text(
-                          DateFormat('dd MMM yyyy, HH:mm').format(report.createdAt),
-                          style: GoogleFonts.inter(
-                            fontSize: 12,
-                            color: const Color(0xFF6B7280),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                    decoration: BoxDecoration(
-                      color: Colors.green.withAlpha(26),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Text(
-                      'Terkirim',
-                      style: GoogleFonts.inter(
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.green[700],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF8FAFC),
-                borderRadius: const BorderRadius.only(
-                  bottomLeft: Radius.circular(16),
-                  bottomRight: Radius.circular(16),
-                ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      const Icon(Icons.location_on_outlined, color: Color(0xFF6B7280), size: 16),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          (report.address.isNotEmpty) ? report.address : "-",
-                          style: GoogleFonts.inter(
-                            fontSize: 13,
-                            color: const Color(0xFF6B7280),
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                  
-                  // Always show that report details are available
-                  const SizedBox(height: 8),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Icon(Icons.visibility_outlined, color: Color(0xFF6366F1), size: 16),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'Laporan tersedia - Klik untuk melihat detail',
-                          style: GoogleFonts.inter(
-                            fontSize: 13,
-                            color: const Color(0xFF6366F1),
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      const Spacer(),
-                      // Add forward icon to indicate it's clickable
-                      Row(
-                        children: [
-                          Text(
-                            'Lihat Detail',
-                            style: GoogleFonts.inter(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                              color: const Color(0xFF6366F1),
-                            ),
-                          ),
-                          const SizedBox(width: 4),
-                          const Icon(
-                            Icons.arrow_forward_ios,
-                            size: 14,
-                            color: Color(0xFF6366F1),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }

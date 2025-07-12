@@ -396,7 +396,7 @@ class ApiService {
         'jenis_laporan': jenisLaporan,
         'is_officer_report': true,
         'use_account_data': false,
-        'isSirine': isSirine ? 1 : 0,
+        'is_sirine': isSirine ? 1 : 0,
       };
       
       // Tambahkan timestamp Jakarta (UTC+7)

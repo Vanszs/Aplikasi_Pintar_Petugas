@@ -1,18 +1,17 @@
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
-import 'package:socket_io_client/socket_io_client.dart' as IO;
+import 'package:socket_io_client/socket_io_client.dart' as io;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:developer' as developer;
 import 'dart:async';
 import '../models/report.dart';
-import '../utils/socket_helper.dart';
 
 class SocketService extends ChangeNotifier {
   final String baseUrl;
-  IO.Socket? _socket;
+  io.Socket? _socket;
   bool _connected = false;
   // Add a stream controller to notify listeners of new reports
-  List<Function(Report)> _reportCallbacks = [];
+  final List<Function(Report)> _reportCallbacks = [];
   // Add keepalive timer
   Timer? _keepAliveTimer;
 
@@ -27,7 +26,7 @@ class SocketService extends ChangeNotifier {
       if (!hasConnectivity) {
         developer.log('No connectivity, delaying socket connection', name: 'SocketService');
         // Try again in a few seconds with exponential backoff
-        Future.delayed(Duration(seconds: 3), () => connect());
+        Future.delayed(const Duration(seconds: 3), () => connect());
         return;
       }
       
@@ -45,7 +44,7 @@ class SocketService extends ChangeNotifier {
           });
           
           // Wait briefly for pong response
-          await Future.delayed(Duration(seconds: 2));
+          await Future.delayed(const Duration(seconds: 2));
           
           if (!pingResponseReceived) {
             developer.log('No pong received, connection may be stale - reconnecting', name: 'SocketService');
@@ -77,7 +76,7 @@ class SocketService extends ChangeNotifier {
       // Create fresh socket with optimized settings for reliability
       // Connect directly to the IoT namespace as configured on the server
       developer.log('Creating socket connection to $baseUrl/iot namespace', name: 'SocketService');
-      _socket = IO.io('$baseUrl/iot', <String, dynamic>{
+      _socket = io.io('$baseUrl/iot', <String, dynamic>{
         'transports': ['websocket', 'polling'], // Allow fallback to polling if websocket fails
         'autoConnect': true,
         'reconnection': true,
@@ -104,7 +103,7 @@ class SocketService extends ChangeNotifier {
       _startKeepAliveTimer();
       
       // Force a join to officer channel after connection
-      Future.delayed(Duration(seconds: 1), () {
+      Future.delayed(const Duration(seconds: 1), () {
         try {
           if (_connected && _socket != null) {
             _socket!.emit('join_officer_channel', {});
@@ -123,7 +122,7 @@ class SocketService extends ChangeNotifier {
       notifyListeners();
       
       // Retry connection after error with a delay
-      Future.delayed(Duration(seconds: 5), () => connect());
+      Future.delayed(const Duration(seconds: 5), () => connect());
     }
   }
 
@@ -354,7 +353,7 @@ class SocketService extends ChangeNotifier {
         }
         
         // Schedule a verification of connection in 3 seconds
-        Future.delayed(Duration(seconds: 3), () {
+        Future.delayed(const Duration(seconds: 3), () {
           if (_connected && _socket != null) {
             // Re-emit join to ensure we're in the channel
             _socket!.emit('join_officer_channel', {});
@@ -404,13 +403,13 @@ class SocketService extends ChangeNotifier {
     // Check connectivity before attempting to reconnect
     if (await _checkConnectivity()) {
       // Schedule another attempt with a delay
-      Future.delayed(Duration(seconds: 3), () {
+      Future.delayed(const Duration(seconds: 3), () {
         if (!_connected && _socket != null) {
           developer.log('Attempting delayed reconnection after disconnect', name: 'SocketService');
           try {
             // Create a new socket if previous one is problematic
             _socket!.disconnect();
-            _socket = IO.io('$baseUrl/iot', <String, dynamic>{
+            _socket = io.io('$baseUrl/iot', <String, dynamic>{
               'transports': ['websocket', 'polling'], // Try both transports
               'autoConnect': true,
               'reconnection': true,
@@ -437,7 +436,7 @@ class SocketService extends ChangeNotifier {
             // Try again if still not connected
             if (!_connected) {
               // Schedule another attempt with increasing delay
-              Future.delayed(Duration(seconds: 5), () => _scheduleReconnect());
+              Future.delayed(const Duration(seconds: 5), () => _scheduleReconnect());
             }
           }
         }
@@ -450,7 +449,7 @@ class SocketService extends ChangeNotifier {
   // Start a periodic connection check to maintain socket connectivity
   void _startPeriodicConnectionCheck() {
     // Create a periodic timer that runs every 30 seconds
-    Future.delayed(Duration(seconds: 30), () {
+    Future.delayed(const Duration(seconds: 30), () {
       _periodicConnectionCheck();
     });
   }
@@ -465,7 +464,7 @@ class SocketService extends ChangeNotifier {
       if (!hasConnectivity) {
         developer.log('No connectivity detected in periodic check', name: 'SocketService');
         // Schedule next check with shorter interval since we have no connectivity
-        Future.delayed(Duration(seconds: 15), () => _periodicConnectionCheck());
+        Future.delayed(const Duration(seconds: 15), () => _periodicConnectionCheck());
         return;
       }
       
@@ -503,7 +502,7 @@ class SocketService extends ChangeNotifier {
             _socket!.emit('ping', {'timestamp': DateTime.now().millisecondsSinceEpoch});
             
             // Check after a delay if we received a response
-            Future.delayed(Duration(seconds: 5), () {
+            Future.delayed(const Duration(seconds: 5), () {
               if (!receivedPong) {
                 developer.log('No pong received, connection may be stale', name: 'SocketService');
                 _connected = false;
@@ -523,7 +522,7 @@ class SocketService extends ChangeNotifier {
       developer.log('Error in periodic connection check: $e', name: 'SocketService');
     } finally {
       // Always schedule the next check, regardless of errors
-      Future.delayed(Duration(seconds: 20), () => _periodicConnectionCheck());
+      Future.delayed(const Duration(seconds: 20), () => _periodicConnectionCheck());
     }
   }
 
@@ -563,7 +562,7 @@ class SocketService extends ChangeNotifier {
     _keepAliveTimer?.cancel();
     
     // Create a new timer that sends a ping every 8 seconds
-    _keepAliveTimer = Timer.periodic(Duration(seconds: 8), (_) {
+    _keepAliveTimer = Timer.periodic(const Duration(seconds: 8), (_) {
       if (_connected && _socket != null) {
         try {
           // Send a ping with timestamp to server

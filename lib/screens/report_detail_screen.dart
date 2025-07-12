@@ -80,11 +80,11 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
           SnackBar(
             content: Text('Error memuat detail: ${e.toString().replaceAll('Exception: ', '')}'),
             backgroundColor: Colors.red,
-            duration: Duration(seconds: 3),
+            duration: const Duration(seconds: 3),
           ),
         );
         // Return to previous screen after delay
-        Future.delayed(Duration(seconds: 2), () {
+        Future.delayed(const Duration(seconds: 2), () {
           if (mounted) context.pop();
         });
       }
@@ -152,7 +152,7 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
                         borderRadius: BorderRadius.circular(8),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.05),
+                            color: const Color.fromRGBO(0, 0, 0, 0.05),
                             blurRadius: 8,
                             offset: const Offset(0, 2),
                           ),
@@ -339,20 +339,20 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
-                  report.getStatusColor().withOpacity(0.1),
-                  report.getStatusColor().withOpacity(0.05),
+                  report.getStatusColor().withAlpha(26),
+                  report.getStatusColor().withAlpha(13),
                 ],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: report.getStatusColor().withOpacity(0.2),
+                color: report.getStatusColor().withAlpha(51),
                 width: 1,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: report.getStatusColor().withOpacity(0.1),
+                  color: report.getStatusColor().withAlpha(26),
                   blurRadius: 15,
                   offset: const Offset(0, 4),
                 ),
@@ -365,7 +365,7 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: report.getStatusColor().withOpacity(0.15),
+                        color: report.getStatusColor().withAlpha(38),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Icon(
@@ -400,7 +400,7 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.8),
+                        color: Colors.white.withAlpha(204),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
@@ -432,7 +432,7 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
+                  color: const Color.fromRGBO(0, 0, 0, 0.05),
                   blurRadius: 15,
                   offset: const Offset(0, 4),
                 ),
@@ -486,7 +486,7 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
+                  color: const Color.fromRGBO(0, 0, 0, 0.05),
                   blurRadius: 15,
                   offset: const Offset(0, 4),
                 ),
@@ -518,7 +518,7 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
+                  color: const Color.fromRGBO(0, 0, 0, 0.05),
                   blurRadius: 15,
                   offset: const Offset(0, 4),
                 ),
@@ -577,7 +577,7 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
                 borderRadius: BorderRadius.circular(12),
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFF25D366).withOpacity(0.3),
+                    color: const Color(0xFF25D366).withAlpha(77),
                     blurRadius: 15,
                     offset: const Offset(0, 6),
                   ),
@@ -612,7 +612,7 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
                           report.phone!,
                           style: GoogleFonts.inter(
                             fontSize: 14,
-                            color: Colors.white.withOpacity(0.9),
+                            color: Colors.white.withAlpha(230),
                           ),
                         ),
                       ],
@@ -652,7 +652,7 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
         Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: iconColor.withOpacity(0.1),
+            color: iconColor.withAlpha(26),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Icon(
@@ -710,11 +710,11 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
       if (!success && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Row(
+            content: const Row(
               children: [
-                const Icon(Icons.error_outline, color: Colors.white),
-                const SizedBox(width: 8),
-                const Expanded(
+                Icon(Icons.error_outline, color: Colors.white),
+                SizedBox(width: 8),
+                Expanded(
                   child: Text('Tidak dapat membuka WhatsApp'),
                 ),
               ],

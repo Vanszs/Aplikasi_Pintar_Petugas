@@ -49,7 +49,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
       ]);
       
       // Start a periodic connection check
-      _connectionCheckTimer = Timer.periodic(Duration(seconds: 30), (timer) {
+      _connectionCheckTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
         if (mounted) {
           _ensureSocketConnection();
         }
@@ -223,9 +223,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                 child: Container(
                   width: 42,
                   height: 42,
-                  decoration: BoxDecoration(
+                  decoration: const BoxDecoration(
                     shape: BoxShape.circle,
-                    color: const Color(0xFF9AA6B2), // Gray background for user avatar
+                    color: Color(0xFF9AA6B2), // Gray background for user avatar
                   ),
                   child: Center(
                     child: Text(
@@ -307,10 +307,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
       decoration: BoxDecoration(
         color: const Color(0xFFF1F5F9), // Softer blue-gray background instead of white
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.withOpacity(0.1)),
+        border: Border.all(color: Colors.grey.withAlpha(26)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: const Color.fromRGBO(0, 0, 0, 0.03),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -428,10 +428,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
         decoration: BoxDecoration(
           color: const Color(0xFFF1F5F9), // Softer blue-gray background
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: color.withOpacity(0.1)),
+          border: Border.all(color: color.withAlpha(26)),
           boxShadow: [
             BoxShadow(
-              color: color.withOpacity(0.05),
+              color: color.withAlpha(13),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
@@ -442,9 +442,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
+                color: color.withAlpha(26),
                 shape: BoxShape.circle,
-                border: Border.all(color: color.withOpacity(0.2)),
+                border: Border.all(color: color.withAlpha(51)),
               ),
               child: Icon(icon, color: color, size: 20),
             ),
@@ -506,10 +506,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
       decoration: BoxDecoration(
         color: Colors.white, // Changed to white as requested
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.withOpacity(0.1)),
+        border: Border.all(color: Colors.grey.withAlpha(26)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: const Color.fromRGBO(0, 0, 0, 0.03),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -561,10 +561,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
             decoration: BoxDecoration(
               color: const Color(0xFFF1F5F9), // Softer blue-gray background
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.grey.withOpacity(0.1)),
+              border: Border.all(color: Colors.grey.withAlpha(26)),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.02),
+                  color: const Color.fromRGBO(0, 0, 0, 0.02),
                   blurRadius: 8,
                   offset: const Offset(0, 2),
                 ),
@@ -579,8 +579,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                     color: const Color(0xFFD9EAFD), // Lighter blue for accent
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Icon(Icons.campaign_outlined,
-                      color: const Color(0xFF6366F1), size: 22),
+                  child: const Icon(Icons.campaign_outlined,
+                      color: Color(0xFF6366F1), size: 22),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
@@ -619,10 +619,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                     ],
                   ),
                 ),
-                Icon(
+                const Icon(
                   Icons.arrow_forward_ios,
                   size: 14,
-                  color: const Color(0xFF6366F1),
+                  color: Color(0xFF6366F1),
                 ),
               ],
             ),

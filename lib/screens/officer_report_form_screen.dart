@@ -206,7 +206,7 @@ class _OfficerReportFormScreenState extends ConsumerState<OfficerReportFormScree
                         borderRadius: BorderRadius.circular(8),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.05),
+                            color: const Color.fromRGBO(0, 0, 0, 0.05),
                             blurRadius: 8,
                             offset: const Offset(0, 2),
                           ),
@@ -290,7 +290,7 @@ class _OfficerReportFormScreenState extends ConsumerState<OfficerReportFormScree
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: const Color.fromRGBO(0, 0, 0, 0.05),
             blurRadius: 20,
             offset: const Offset(0, 5),
           ),
@@ -304,7 +304,7 @@ class _OfficerReportFormScreenState extends ConsumerState<OfficerReportFormScree
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF6366F1).withOpacity(0.1),
+                  color: const Color(0xFF6366F1).withAlpha(26),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Icon(
@@ -351,7 +351,7 @@ class _OfficerReportFormScreenState extends ConsumerState<OfficerReportFormScree
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: const Color.fromRGBO(0, 0, 0, 0.04),
             blurRadius: 15,
             offset: const Offset(0, 3),
           ),
@@ -364,9 +364,9 @@ class _OfficerReportFormScreenState extends ConsumerState<OfficerReportFormScree
             padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
             child: Row(
               children: [
-                Icon(
+                const Icon(
                   Icons.category_outlined,
-                  color: const Color(0xFF6366F1),
+                  color: Color(0xFF6366F1),
                   size: 20,
                 ),
                 const SizedBox(width: 12),
@@ -455,7 +455,7 @@ class _OfficerReportFormScreenState extends ConsumerState<OfficerReportFormScree
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: const Color.fromRGBO(0, 0, 0, 0.04),
             blurRadius: 15,
             offset: const Offset(0, 3),
           ),
@@ -466,9 +466,9 @@ class _OfficerReportFormScreenState extends ConsumerState<OfficerReportFormScree
         children: [
           Row(
             children: [
-              Icon(
+              const Icon(
                 Icons.location_on_outlined,
-                color: const Color(0xFF6366F1),
+                color: Color(0xFF6366F1),
                 size: 20,
               ),
               const SizedBox(width: 12),
@@ -526,7 +526,7 @@ class _OfficerReportFormScreenState extends ConsumerState<OfficerReportFormScree
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: const Color.fromRGBO(0, 0, 0, 0.04),
             blurRadius: 15,
             offset: const Offset(0, 3),
           ),
@@ -537,9 +537,9 @@ class _OfficerReportFormScreenState extends ConsumerState<OfficerReportFormScree
         children: [
           Row(
             children: [
-              Icon(
+              const Icon(
                 Icons.phone_outlined,
-                color: const Color(0xFF6366F1),
+                color: Color(0xFF6366F1),
                 size: 20,
               ),
               const SizedBox(width: 12),
@@ -605,7 +605,7 @@ class _OfficerReportFormScreenState extends ConsumerState<OfficerReportFormScree
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: const Color.fromRGBO(0, 0, 0, 0.04),
             blurRadius: 15,
             offset: const Offset(0, 3),
           ),
@@ -616,9 +616,9 @@ class _OfficerReportFormScreenState extends ConsumerState<OfficerReportFormScree
         children: [
           Row(
             children: [
-              Icon(
+              const Icon(
                 Icons.home_work_outlined,
-                color: const Color(0xFF6366F1),
+                color: Color(0xFF6366F1),
                 size: 20,
               ),
               const SizedBox(width: 12),
@@ -684,7 +684,7 @@ class _OfficerReportFormScreenState extends ConsumerState<OfficerReportFormScree
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: const Color.fromRGBO(0, 0, 0, 0.04),
             blurRadius: 15,
             offset: const Offset(0, 3),
           ),
@@ -692,25 +692,30 @@ class _OfficerReportFormScreenState extends ConsumerState<OfficerReportFormScree
       ),
       child: Row(
         children: [
-          Icon(Icons.speaker, color: _isSirine ? Color(0xFFEF4444) : Color(0xFF6366F1), size: 24),
+          Icon(Icons.speaker, color: _isSirine ? const Color(0xFFEF4444) : const Color(0xFF6366F1), size: 24),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Aktifkan Sirine', style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFF1E293B))),
-                Text('Nyalakan sirine saat laporan dikirim', style: GoogleFonts.inter(fontSize: 13, color: Color(0xFF64748B))),
+                Text('Aktifkan Sirine', style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w600, color: const Color(0xFF1E293B))),
+                Text('Nyalakan sirine saat laporan dikirim', style: GoogleFonts.inter(fontSize: 13, color: const Color(0xFF64748B))),
               ],
             ),
           ),
           AnimatedSwitcher(
-            duration: Duration(milliseconds: 350),
+            duration: const Duration(milliseconds: 350),
             transitionBuilder: (child, anim) => ScaleTransition(scale: anim, child: child),
             child: Switch(
               key: ValueKey(_isSirine),
               value: _isSirine,
-              activeColor: Color(0xFFEF4444),
-              inactiveThumbColor: Color(0xFF6366F1),
+              activeColor: const Color(0xFFEF4444),
+              thumbColor: WidgetStateProperty.resolveWith<Color?>((states) {
+                if (states.contains(WidgetState.selected)) {
+                  return const Color(0xFFEF4444);
+                }
+                return const Color(0xFF6366F1);
+              }),
               onChanged: (val) {
                 setState(() => _isSirine = val);
                 HapticFeedback.lightImpact();
@@ -768,7 +773,7 @@ class _OfficerReportFormScreenState extends ConsumerState<OfficerReportFormScree
             ),
         boxShadow: _isSubmitting ? [] : [
           BoxShadow(
-            color: const Color(0xFF6366F1).withOpacity(0.3),
+            color: const Color(0xFF6366F1).withAlpha(77),
             blurRadius: 20,
             offset: const Offset(0, 8),
           ),
@@ -785,7 +790,7 @@ class _OfficerReportFormScreenState extends ConsumerState<OfficerReportFormScree
                 ? Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      SizedBox(
+                      const SizedBox(
                         height: 20,
                         width: 20,
                         child: CircularProgressIndicator(

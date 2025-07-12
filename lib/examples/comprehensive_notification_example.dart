@@ -170,21 +170,21 @@ class _ComprehensiveNotificationExampleState extends ConsumerState<Comprehensive
           const SizedBox(height: 24),
           
           // Information section
-          Card(
+          const Card(
             child: Padding(
-              padding: const EdgeInsets.all(16),
+              padding: EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'Informasi',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-                  const SizedBox(height: 12),
-                  const Text(
+                  SizedBox(height: 12),
+                  Text(
                     '• Notifikasi diperlukan untuk menerima laporan baru secara real-time\n'
                     '• Optimasi baterai sebaiknya dinonaktifkan untuk performa background yang optimal\n'
                     '• Aplikasi dapat tetap menerima notifikasi meskipun ditutup\n'
@@ -209,17 +209,17 @@ class _ComprehensiveNotificationExampleState extends ConsumerState<Comprehensive
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: result.hasOptimalConfiguration 
-            ? Colors.green.withOpacity(0.1)
+            ? const Color.fromRGBO(76, 175, 80, 0.1)
             : result.isGranted 
-                ? Colors.orange.withOpacity(0.1)
-                : Colors.red.withOpacity(0.1),
+                ? const Color.fromRGBO(255, 152, 0, 0.1)
+                : const Color.fromRGBO(244, 67, 54, 0.1),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
           color: result.hasOptimalConfiguration 
-              ? Colors.green.withOpacity(0.3)
+              ? const Color.fromRGBO(76, 175, 80, 0.3)
               : result.isGranted 
-                  ? Colors.orange.withOpacity(0.3)
-                  : Colors.red.withOpacity(0.3),
+                  ? const Color.fromRGBO(255, 152, 0, 0.3)
+                  : const Color.fromRGBO(244, 67, 54, 0.3),
         ),
       ),
       child: Column(

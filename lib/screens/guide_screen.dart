@@ -92,9 +92,9 @@ class _GuideScreenState extends ConsumerState<GuideScreen> with TickerProviderSt
                 color: const Color(0xFF9AA6B2).withAlpha(51),
                 shape: BoxShape.circle,
               ),
-              child: Icon(
-                Icons.arrow_back, 
-                color: const Color(0xFF334155), 
+              child: const Icon(
+                Icons.arrow_back,
+                color: Color(0xFF334155),
                 size: 20,
               ),
             ),
@@ -123,7 +123,7 @@ class _GuideScreenState extends ConsumerState<GuideScreen> with TickerProviderSt
         border: Border.all(color: const Color(0xFFD1D5DB)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: const Color.fromRGBO(0, 0, 0, 0.05),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -182,7 +182,7 @@ class _GuideScreenState extends ConsumerState<GuideScreen> with TickerProviderSt
             item['icon'] as IconData,
             index,
           );
-        }).toList(),
+        }),
         
         const SizedBox(height: 24),
         _buildSectionHeader('Cara Kerja', Icons.settings),
@@ -200,7 +200,7 @@ class _GuideScreenState extends ConsumerState<GuideScreen> with TickerProviderSt
             item['desc'] as String,
             index,
           );
-        }).toList(),
+        }),
       ],
     );
   }
@@ -249,7 +249,7 @@ class _GuideScreenState extends ConsumerState<GuideScreen> with TickerProviderSt
             feature['color'] as Color,
             index,
           );
-        }).toList(),
+        }),
       ],
     );
   }
@@ -278,7 +278,7 @@ class _GuideScreenState extends ConsumerState<GuideScreen> with TickerProviderSt
             step['desc'] as String,
             index,
           );
-        }).toList(),
+        }),
         
         const SizedBox(height: 24),
         _buildSectionHeader('Hal Penting', Icons.warning_amber),
@@ -297,7 +297,7 @@ class _GuideScreenState extends ConsumerState<GuideScreen> with TickerProviderSt
         border: Border.all(color: const Color(0xFFD1D5DB)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: const Color.fromRGBO(0, 0, 0, 0.05),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -308,12 +308,12 @@ class _GuideScreenState extends ConsumerState<GuideScreen> with TickerProviderSt
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: const Color(0xFF6366F1).withOpacity(0.1),
+              color: const Color(0xFF6366F1).withAlpha(26),
               shape: BoxShape.circle,
             ),
-            child: Icon(
+            child: const Icon(
               Icons.security_outlined,
-              color: const Color(0xFF6366F1),
+              color: Color(0xFF6366F1),
               size: 36,
             ),
           ),
@@ -356,7 +356,7 @@ class _GuideScreenState extends ConsumerState<GuideScreen> with TickerProviderSt
         Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: const Color(0xFF6366F1).withOpacity(0.1),
+            color: const Color(0xFF6366F1).withAlpha(26),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Icon(icon, color: const Color(0xFF6366F1), size: 18),
@@ -384,7 +384,7 @@ class _GuideScreenState extends ConsumerState<GuideScreen> with TickerProviderSt
         border: Border.all(color: const Color(0xFFD1D5DB)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: const Color.fromRGBO(0, 0, 0, 0.03),
             blurRadius: 6,
             offset: const Offset(0, 2),
           ),
@@ -395,7 +395,7 @@ class _GuideScreenState extends ConsumerState<GuideScreen> with TickerProviderSt
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: const Color(0xFF6366F1).withOpacity(0.1),
+              color: const Color(0xFF6366F1).withAlpha(26),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(icon, color: const Color(0xFF6366F1), size: 20),
@@ -440,7 +440,7 @@ class _GuideScreenState extends ConsumerState<GuideScreen> with TickerProviderSt
         border: Border.all(color: const Color(0xFFD1D5DB)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: const Color.fromRGBO(0, 0, 0, 0.03),
             blurRadius: 6,
             offset: const Offset(0, 2),
           ),
@@ -451,8 +451,8 @@ class _GuideScreenState extends ConsumerState<GuideScreen> with TickerProviderSt
           Container(
             width: 36,
             height: 36,
-            decoration: BoxDecoration(
-              color: const Color(0xFF6366F1),
+            decoration: const BoxDecoration(
+              color: Color(0xFF6366F1),
               shape: BoxShape.circle,
             ),
             child: Center(
@@ -505,7 +505,7 @@ class _GuideScreenState extends ConsumerState<GuideScreen> with TickerProviderSt
         border: Border.all(color: const Color(0xFFD1D5DB)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: const Color.fromRGBO(0, 0, 0, 0.05),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -518,7 +518,7 @@ class _GuideScreenState extends ConsumerState<GuideScreen> with TickerProviderSt
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF6366F1).withOpacity(0.1),
+                  color: const Color(0xFF6366F1).withAlpha(26),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Icon(Icons.apps, color: Color(0xFF6366F1)),
@@ -562,7 +562,7 @@ class _GuideScreenState extends ConsumerState<GuideScreen> with TickerProviderSt
         border: Border.all(color: const Color(0xFFD1D5DB)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: const Color.fromRGBO(0, 0, 0, 0.05),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -575,7 +575,7 @@ class _GuideScreenState extends ConsumerState<GuideScreen> with TickerProviderSt
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF6366F1).withOpacity(0.1),
+                  color: const Color(0xFF6366F1).withAlpha(26),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Icon(Icons.campaign_outlined, color: Color(0xFF6366F1)),
@@ -614,9 +614,9 @@ class _GuideScreenState extends ConsumerState<GuideScreen> with TickerProviderSt
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.orange.withOpacity(0.3),
+        color: Colors.orange.withAlpha(77),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.orange.withOpacity(0.5)),
+        border: Border.all(color: Colors.orange.withAlpha(128)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -683,7 +683,7 @@ class _GuideScreenState extends ConsumerState<GuideScreen> with TickerProviderSt
         border: Border.all(color: const Color(0xFFD1D5DB)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: const Color.fromRGBO(0, 0, 0, 0.03),
             blurRadius: 6,
             offset: const Offset(0, 2),
           ),
@@ -694,7 +694,7 @@ class _GuideScreenState extends ConsumerState<GuideScreen> with TickerProviderSt
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
+              color: color.withAlpha(26),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(icon, color: color, size: 24),
@@ -739,7 +739,7 @@ class _GuideScreenState extends ConsumerState<GuideScreen> with TickerProviderSt
         border: Border.all(color: const Color(0xFFD1D5DB)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: const Color.fromRGBO(0, 0, 0, 0.03),
             blurRadius: 6,
             offset: const Offset(0, 2),
           ),
@@ -752,7 +752,7 @@ class _GuideScreenState extends ConsumerState<GuideScreen> with TickerProviderSt
             width: 32,
             height: 32,
             decoration: BoxDecoration(
-              color: const Color(0xFFEF4444).withOpacity(0.8),
+              color: const Color(0xFFEF4444).withAlpha(204),
               borderRadius: BorderRadius.circular(16),
             ),
             child: Center(

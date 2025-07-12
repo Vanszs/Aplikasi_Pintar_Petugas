@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../main.dart';
-import '../services/api.dart';
 import '../widgets/gradient_background.dart';
 
 class UserStatsScreen extends ConsumerStatefulWidget {
@@ -126,7 +125,7 @@ class _UserStatsScreenState extends ConsumerState<UserStatsScreen> {
           const SizedBox(height: 20),
           Text('Laporan Terbaru', style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w600)),
           const SizedBox(height: 12),
-          ...recent.map((e) => _recentTile(e)).toList(),
+          ...recent.map((e) => _recentTile(e)),
         ],
       ),
     );
@@ -139,7 +138,7 @@ class _UserStatsScreenState extends ConsumerState<UserStatsScreen> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 5, offset: const Offset(0, 2)),
+          BoxShadow(color: const Color.fromRGBO(0, 0, 0, 0.05), blurRadius: 5, offset: const Offset(0, 2)),
         ],
       ),
       child: Row(
@@ -161,7 +160,7 @@ class _UserStatsScreenState extends ConsumerState<UserStatsScreen> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 5, offset: const Offset(0, 2)),
+          BoxShadow(color: const Color.fromRGBO(0, 0, 0, 0.05), blurRadius: 5, offset: const Offset(0, 2)),
         ],
       ),
       child: Column(
