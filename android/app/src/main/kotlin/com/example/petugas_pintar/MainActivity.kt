@@ -41,8 +41,4 @@ class MainActivity : FlutterActivity() {
         Log.d(TAG, "MainActivity onDestroy")
     }
     
-    override fun onBackPressed() {
-        // When back is pressed, move the app to background rather than closing
-        moveTaskToBack(true)
-    }
 }

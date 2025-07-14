@@ -136,14 +136,7 @@ class ProfileScreen extends ConsumerWidget {
           ),
           child: IconButton(
             icon: const Icon(Icons.settings_outlined, size: 20, color: Color(0xFF6366F1)),
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Pengaturan akan datang di versi berikutnya'),
-                  behavior: SnackBarBehavior.floating,
-                ),
-              );
-            },
+            onPressed: () => context.push('/settings'),
           ),
         ),
       ],

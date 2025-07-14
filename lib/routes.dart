@@ -13,6 +13,7 @@ import 'screens/user_detail_screen.dart';
 import 'screens/user_stats_screen.dart';
 import 'screens/report_detail_screen.dart';
 import 'screens/officer_report_form_screen.dart'; // Import officer report form screen
+import 'screens/settings_screen.dart';
 
 final navigatorKey = GlobalKey<NavigatorState>();
 
@@ -91,6 +92,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/officer-report-form',
         builder: (context, state) => const OfficerReportFormScreen(),
+      ),
+      GoRoute(
+        path: '/settings',
+        builder: (context, state) => const SettingsScreen(),
       ),
     ],
     redirect: (context, state) {

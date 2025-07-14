@@ -3,6 +3,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'dart:developer' as developer;
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/report.dart';
 
 class NotificationService extends ChangeNotifier {
@@ -168,6 +169,32 @@ class NotificationService extends ChangeNotifier {
     }
   }
 
+  Future<AndroidNotificationDetails> _getNotificationDetails(String channelId, String channelName, {Color color = const Color(0xFF6366F1)}) async {
+    final prefs = await SharedPreferences.getInstance();
+    final sound = prefs.getString('notification_sound');
+
+    return AndroidNotificationDetails(
+      channelId,
+      channelName,
+      importance: Importance.max,
+      priority: Priority.high,
+      fullScreenIntent: true,
+      visibility: NotificationVisibility.public,
+      ticker: 'Laporan baru masuk',
+      color: color,
+      enableLights: true,
+      ledColor: color,
+      ledOnMs: 1000,
+      ledOffMs: 500,
+      playSound: true,
+      sound: sound != null ? UriAndroidNotificationSound(sound) : null,
+      enableVibration: false,
+      category: AndroidNotificationCategory.alarm,
+      autoCancel: true,
+      icon: '@mipmap/launcher_icon',
+    );
+  }
+
   Future<void> showNewReportNotification(Report report) async {
     // Check if we have permission before trying to show notification
     final hasPermission = await checkNotificationPermissions();
@@ -197,26 +224,7 @@ class NotificationService extends ChangeNotifier {
 
     try {
       // Configure notification details optimized for foreground/background
-      final AndroidNotificationDetails androidNotificationDetails = AndroidNotificationDetails(
-        'new_reports',
-        'Laporan Baru',
-        channelDescription: 'Notifikasi saat ada laporan baru',
-        importance: Importance.max,
-        priority: Priority.high,
-        fullScreenIntent: true, // Will pop up even when screen is locked
-        visibility: NotificationVisibility.public,
-        ticker: 'Laporan baru masuk',
-        color: Color(0xFF6366F1), // Brand indigo color
-        enableLights: true,
-        ledColor: Color(0xFF6366F1),
-        ledOnMs: 1000,
-        ledOffMs: 500,
-        playSound: true,
-        enableVibration: false, // Disable vibration as requested
-        category: AndroidNotificationCategory.alarm, // Critical notification category
-        autoCancel: true, // Allow user to dismiss the notification
-        icon: '@mipmap/launcher_icon', // Use app icon instead of default
-      );
+      final AndroidNotificationDetails androidNotificationDetails = await _getNotificationDetails('new_reports', 'Laporan Baru');
 
       const DarwinNotificationDetails iOSNotificationDetails = DarwinNotificationDetails(
         presentAlert: true,
@@ -291,21 +299,7 @@ class NotificationService extends ChangeNotifier {
           break;
       }
 
-      final AndroidNotificationDetails androidNotificationDetails = AndroidNotificationDetails(
-        'status_updates',
-        'Status Laporan',
-        channelDescription: 'Notifikasi saat status laporan berubah',
-        importance: Importance.high,
-        priority: Priority.high,
-        color: statusColor,
-        enableLights: true,
-        ledColor: statusColor,
-        ledOnMs: 1000,
-        ledOffMs: 500,
-        playSound: true,
-        enableVibration: false, // Disable vibration as requested
-        icon: '@mipmap/launcher_icon', // Use app icon instead of default
-      );
+      final AndroidNotificationDetails androidNotificationDetails = await _getNotificationDetails('status_updates', 'Status Laporan', color: statusColor);
 
       const DarwinNotificationDetails iOSNotificationDetails = DarwinNotificationDetails(
         presentAlert: true,
