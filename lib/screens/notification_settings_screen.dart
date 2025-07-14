@@ -66,127 +66,129 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: GradientBackground(
-        colors: const [
-          Color(0xFFEFF6FF),
-          Color(0xFFEDE9FE),
-          Color(0xFFFDF2F8),
-          Color(0xFFF0F9FF),
-        ],
-        child: FutureBuilder<List<File>>(
-          future: _soundFiles,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            } else if (snapshot.hasError) {
-              return const Center(child: Text('Error loading sounds'));
-            }
+      body: SafeArea(
+        child: GradientBackground(
+          colors: const [
+            Color(0xFFEFF6FF),
+            Color(0xFFEDE9FE),
+            Color(0xFFFDF2F8),
+            Color(0xFFF0F9FF),
+          ],
+          child: FutureBuilder<List<File>>(
+            future: _soundFiles,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              } else if (snapshot.hasError) {
+                return const Center(child: Text('Error loading sounds'));
+              }
 
-            final files = snapshot.data ?? [];
+              final files = snapshot.data ?? [];
 
-            return CustomScrollView(
-              slivers: [
-                SliverAppBar(
-                  title: Text(
-                    'Notification Sounds',
-                    style: GoogleFonts.inter(
-                      fontWeight: FontWeight.bold,
-                      color: const Color(0xFF1E293B),
+              return CustomScrollView(
+                slivers: [
+                  SliverAppBar(
+                    title: Text(
+                      'Notification Sounds',
+                      style: GoogleFonts.inter(
+                        fontWeight: FontWeight.bold,
+                        color: const Color(0xFF1E293B),
+                      ),
                     ),
+                    backgroundColor: Colors.transparent,
+                    elevation: 0,
+                    iconTheme: const IconThemeData(color: Color(0xFF1E293B)),
                   ),
-                  backgroundColor: Colors.transparent,
-                  elevation: 0,
-                  iconTheme: const IconThemeData(color: Color(0xFF1E293B)),
-                ),
-                if (files.isEmpty)
-                  SliverFillRemaining(
-                    child: Padding(
-                      padding: const EdgeInsets.all(20.0),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.grey.withOpacity(0.1),
-                              spreadRadius: 1,
-                              blurRadius: 5,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Lottie.asset(
-                                'assets/animations/empty.json',
-                                width: 200,
-                                height: 200,
-                              ),
-                              const SizedBox(height: 20),
-                              Text(
-                                'Belum ada sound yang diunggah',
-                                style: GoogleFonts.inter(fontSize: 16),
-                              ),
-                              const SizedBox(height: 20),
-                              ElevatedButton.icon(
-                                onPressed: _pickAndSaveSound,
-                                icon: const Icon(Icons.add),
-                                label: const Text('Add Sound'),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF4F46E5),
-                                  foregroundColor: Colors.white,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 24,
-                                    vertical: 12,
-                                  ),
-                                ),
+                  if (files.isEmpty)
+                    SliverFillRemaining(
+                      child: Padding(
+                        padding: const EdgeInsets.all(20.0),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.grey.withOpacity(0.1),
+                                spreadRadius: 1,
+                                blurRadius: 5,
+                                offset: const Offset(0, 2),
                               ),
                             ],
                           ),
+                          child: Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Lottie.asset(
+                                  'assets/animations/empty.json',
+                                  width: 200,
+                                  height: 200,
+                                ),
+                                const SizedBox(height: 20),
+                                Text(
+                                  'Belum ada sound yang diunggah',
+                                  style: GoogleFonts.inter(fontSize: 16),
+                                ),
+                                const SizedBox(height: 20),
+                                ElevatedButton.icon(
+                                  onPressed: _pickAndSaveSound,
+                                  icon: const Icon(Icons.add),
+                                  label: const Text('Add Sound'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF4F46E5),
+                                    foregroundColor: Colors.white,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 24,
+                                      vertical: 12,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    )
+                  else
+                    SliverPadding(
+                      padding: const EdgeInsets.all(20.0),
+                      sliver: SliverList(
+                        delegate: SliverChildBuilderDelegate(
+                          (context, index) {
+                            final file = files[index];
+                            final fileName = file.path.split('/').last;
+                            final isSelected = file.path == _selectedSound;
+
+                            return Card(
+                              elevation: 2.0,
+                              margin: const EdgeInsets.symmetric(vertical: 8.0),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: ListTile(
+                                title: Text(
+                                  fileName,
+                                  style: GoogleFonts.inter(),
+                                ),
+                                trailing: isSelected
+                                    ? const Icon(Icons.check_circle, color: Color(0xFF4F46E5))
+                                    : null,
+                                onTap: () => _setSelectedSound(file.path),
+                              ),
+                            );
+                          },
+                          childCount: files.length,
                         ),
                       ),
                     ),
-                  )
-                else
-                  SliverPadding(
-                    padding: const EdgeInsets.all(20.0),
-                    sliver: SliverList(
-                      delegate: SliverChildBuilderDelegate(
-                        (context, index) {
-                          final file = files[index];
-                          final fileName = file.path.split('/').last;
-                          final isSelected = file.path == _selectedSound;
-
-                          return Card(
-                            elevation: 2.0,
-                            margin: const EdgeInsets.symmetric(vertical: 8.0),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: ListTile(
-                              title: Text(
-                                fileName,
-                                style: GoogleFonts.inter(),
-                              ),
-                              trailing: isSelected
-                                  ? const Icon(Icons.check_circle, color: Color(0xFF4F46E5))
-                                  : null,
-                              onTap: () => _setSelectedSound(file.path),
-                            ),
-                          );
-                        },
-                        childCount: files.length,
-                      ),
-                    ),
-                  ),
-              ],
-            );
-          },
+                ],
+              );
+            },
+          ),
         ),
       ),
       floatingActionButton: FutureBuilder<List<File>>(

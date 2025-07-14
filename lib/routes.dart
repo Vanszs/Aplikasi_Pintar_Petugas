@@ -15,6 +15,7 @@ import 'screens/report_detail_screen.dart';
 import 'screens/officer_report_form_screen.dart'; // Import officer report form screen
 import 'screens/settings_screen.dart';
 import 'screens/notification_settings_screen.dart';
+import 'screens/credits_screen.dart';
 
 final navigatorKey = GlobalKey<NavigatorState>();
 
@@ -101,6 +102,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/notification-settings',
         builder: (context, state) => const NotificationSettingsScreen(),
+      ),
+      GoRoute(
+        path: '/credits',
+        builder: (context, state) => const CreditsScreen(),
       ),
     ],
     redirect: (context, state) {

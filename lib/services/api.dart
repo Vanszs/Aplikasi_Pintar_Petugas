@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import '../models/report.dart';
 import '../models/user.dart';
 import '../utils/timezone_helper.dart';
+import 'error_handler_service.dart';
 
 class ApiService {
   final String baseUrl;
@@ -26,6 +27,7 @@ class ApiService {
       return response.statusCode == 200;
     } catch (e) {
       developer.log('Server health check failed: $e', name: 'ApiService');
+      // No context to pass to ErrorHandlerService here, so return a generic message
       return false;
     }
   }
@@ -94,7 +96,7 @@ class ApiService {
       
       return {
         'success': false,
-        'message': 'Terjadi kesalahan koneksi: ${e.toString()}',
+        'message': 'Terjadi kesalahan koneksi.', // Generic message for connection errors
       };
     }
   }
@@ -129,7 +131,7 @@ class ApiService {
       developer.log('Token validation error: $e', name: 'ApiService');
       return {
         'success': false,
-        'message': 'Error validating token: ${e.toString()}',
+        'message': 'Terjadi kesalahan saat memvalidasi token.', // Generic message
       };
     }
   }
@@ -174,12 +176,11 @@ class ApiService {
       }
     } catch (e) {
       developer.log('Logout error: $e', name: 'ApiService');
-      // Still clear the token on error
       token = null;
       currentUsername = null;
       return {
         'success': true,
-        'message': 'Logged out locally due to error: ${e.toString()}',
+        'message': 'Terjadi kesalahan saat logout. Sesi lokal telah dihapus.',
       };
     }
   }
@@ -238,7 +239,7 @@ class ApiService {
       developer.log('Error fetching user profile: $e', name: 'ApiService');
       return {
         'success': false,
-        'message': 'Connection error: ${e.toString()}',
+        'message': 'Terjadi kesalahan koneksi saat mengambil profil pengguna.',
       };
     }
   }
@@ -365,7 +366,7 @@ class ApiService {
       developer.log('Error sending report: $e', name: 'ApiService');
       return {
         'success': false,
-        'message': 'Connection error: ${e.toString()}',
+        'message': 'Terjadi kesalahan koneksi saat mengirim laporan.',
       };
     }
   }
@@ -445,7 +446,7 @@ class ApiService {
       developer.log('Error sending petugas report: $e', name: 'ApiService');
       return {
         'success': false,
-        'message': 'Connection error: ${e.toString()}',
+        'message': 'Terjadi kesalahan koneksi saat mengirim laporan petugas.',
       };
     }
   }
@@ -488,7 +489,7 @@ class ApiService {
       developer.log('Error fetching user statistics: $e', name: 'ApiService');
       return {
         'success': false,
-        'message': 'Connection error: ${e.toString()}',
+        'message': 'Terjadi kesalahan koneksi saat mengambil statistik pengguna.',
       };
     }
   }
@@ -545,7 +546,7 @@ class ApiService {
       developer.log('Error fetching user reports: $e', name: 'ApiService');
       return {
         'success': false,
-        'message': 'Connection error: ${e.toString()}',
+        'message': 'Terjadi kesalahan koneksi saat mengambil laporan pengguna.',
       };
     }
   }
@@ -586,7 +587,7 @@ class ApiService {
       developer.log('Error fetching user: $e', name: 'ApiService');
       return {
         'success': false,
-        'message': 'Connection error: ${e.toString()}',
+        'message': 'Terjadi kesalahan koneksi saat mengambil data pengguna.',
       };
     }
   }
@@ -627,7 +628,7 @@ class ApiService {
       developer.log('Error fetching user stats: $e', name: 'ApiService');
       return {
         'success': false,
-        'message': 'Connection error: ${e.toString()}',
+        'message': 'Terjadi kesalahan koneksi saat mengambil statistik pengguna.',
       };
     }
   }
@@ -669,7 +670,7 @@ class ApiService {
       developer.log('Error fetching global stats: $e', name: 'ApiService');
       return {
         'success': false,
-        'message': 'Connection error: ${e.toString()}',
+        'message': 'Terjadi kesalahan koneksi saat mengambil statistik global.',
       };
     }
   }
@@ -723,7 +724,7 @@ class ApiService {
       developer.log('Error fetching all reports: $e', name: 'ApiService');
       return {
         'success': false,
-        'message': 'Connection error: ${e.toString()}',
+        'message': 'Terjadi kesalahan koneksi saat mengambil semua laporan.',
       };
     }
   }
@@ -764,7 +765,7 @@ class ApiService {
       developer.log('Error fetching global statistics: $e', name: 'ApiService');
       return {
         'success': false,
-        'message': 'Connection error: ${e.toString()}',
+        'message': 'Terjadi kesalahan koneksi saat mengambil statistik laporan global.',
       };
     }
   }
@@ -844,7 +845,7 @@ class ApiService {
       developer.log('Error fetching report detail: $e', name: 'ApiService');
       return {
         'success': false,
-        'message': 'Connection error: ${e.toString()}',
+        'message': 'Terjadi kesalahan koneksi saat mengambil detail laporan.',
       };
     }
   }
@@ -885,7 +886,7 @@ class ApiService {
       developer.log('Error in getReportWithRetry: $e', name: 'ApiService');
       return {
         'success': false,
-        'message': 'Error: ${e.toString()}'
+        'message': 'Terjadi kesalahan saat mengambil laporan.'
       };
     }
   }
@@ -940,7 +941,7 @@ class ApiService {
       developer.log('Error registering FCM token: $e', name: 'ApiService');
       return {
         'success': false,
-        'message': 'Connection error: ${e.toString()}',
+        'message': 'Terjadi kesalahan koneksi saat mendaftarkan token FCM.',
       };
     }
   }
@@ -993,7 +994,7 @@ class ApiService {
       developer.log('Error updating report status: $e', name: 'ApiService');
       return {
         'success': false,
-        'message': 'Connection error: ${e.toString()}',
+        'message': 'Terjadi kesalahan koneksi saat memperbarui status laporan.',
       };
     }
   }
