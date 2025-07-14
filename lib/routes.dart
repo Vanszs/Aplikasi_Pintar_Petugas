@@ -14,6 +14,7 @@ import 'screens/user_stats_screen.dart';
 import 'screens/report_detail_screen.dart';
 import 'screens/officer_report_form_screen.dart'; // Import officer report form screen
 import 'screens/settings_screen.dart';
+import 'screens/notification_settings_screen.dart';
 
 final navigatorKey = GlobalKey<NavigatorState>();
 
@@ -96,6 +97,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/settings',
         builder: (context, state) => const SettingsScreen(),
+      ),
+      GoRoute(
+        path: '/notification-settings',
+        builder: (context, state) => const NotificationSettingsScreen(),
       ),
     ],
     redirect: (context, state) {

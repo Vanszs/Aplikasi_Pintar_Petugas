@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:file_picker/file_picker.dart';
+import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../widgets/gradient_background.dart';
@@ -27,19 +27,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     });
   }
 
-  Future<void> _pickNotificationSound() async {
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.audio,
-    );
-
-    if (result != null) {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('notification_sound', result.files.single.path!);
-      setState(() {
-        _notificationSound = result.files.single.path;
-      });
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -80,17 +67,33 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    ListTile(
-                      title: Text(
-                        'Suara Notifikasi',
-                        style: GoogleFonts.inter(),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.grey.withOpacity(0.1),
+                            spreadRadius: 1,
+                            blurRadius: 5,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
                       ),
-                      subtitle: Text(
-                        _notificationSound ?? 'Default',
-                        style: GoogleFonts.inter(color: Colors.grey),
+                      child: ListTile(
+                        title: Text(
+                          'Suara Notifikasi',
+                          style: GoogleFonts.inter(),
+                        ),
+                        subtitle: Text(
+                          _notificationSound ?? 'Default',
+                          style: GoogleFonts.inter(color: Colors.grey),
+                        ),
+                        onTap: () {
+                          GoRouter.of(context).push('/notification-settings');
+                        },
+                        trailing: const Icon(Icons.arrow_forward_ios),
                       ),
-                      onTap: _pickNotificationSound,
-                      trailing: const Icon(Icons.arrow_forward_ios),
                     ),
                   ],
                 ),
