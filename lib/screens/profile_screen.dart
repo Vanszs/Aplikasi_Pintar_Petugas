@@ -3,10 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import '../main.dart';
 import '../models/user.dart';
 import '../providers/auth_provider.dart';
 import '../providers/report_provider.dart';
+import '../providers/global_refresh_provider.dart';
 import '../widgets/gradient_background.dart';
 
 class ProfileScreen extends ConsumerWidget {
@@ -48,12 +48,8 @@ class ProfileScreen extends ConsumerWidget {
             Expanded(
               child: RefreshIndicator(
                 onRefresh: () async {
-                  final authNotifier = ref.read(authProvider.notifier);
-                  final apiService = ref.read(apiServiceProvider);
-                  final profileResult = await apiService.getUserProfile();
-                  if (profileResult['success']) {
-                    authNotifier.updateUser(profileResult['user']);
-                  }
+                  final globalRefresh = ref.read(globalRefreshProvider);
+                  await globalRefresh();
                 },
                 child: CustomScrollView(
                   physics: const BouncingScrollPhysics(),

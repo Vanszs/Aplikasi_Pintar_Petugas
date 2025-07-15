@@ -6,6 +6,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:lottie/lottie.dart';
 import '../models/report.dart';
 import '../providers/report_provider.dart';
+import '../providers/global_refresh_provider.dart';
 import '../widgets/gradient_background.dart';
 import '../widgets/report_card.dart';
 
@@ -30,7 +31,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
   }
 
   Future<void> _refreshReports() async {
-    await ref.read(reportProvider.notifier).loadAllReports();
+    final globalRefresh = ref.read(globalRefreshProvider);
+    await globalRefresh();
     // Reset to first page on refresh
     if (mounted) {
       setState(() {
@@ -122,52 +124,78 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
   }
 
   Widget _buildAppBar() {
-    return Padding(
-      padding: const EdgeInsets.all(20.0),
-      child: Row(
-        children: [
-          GestureDetector(
-            onTap: () => context.pop(),
-            child: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: const Color(0xFF9AA6B2).withAlpha(51),
-                shape: BoxShape.circle,
+    return Consumer(
+      builder: (context, ref, child) {
+        final isGlobalRefreshing = ref.watch(globalRefreshStateProvider);
+        
+        return Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: Row(
+            children: [
+              GestureDetector(
+                onTap: () => context.pop(),
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF9AA6B2).withAlpha(51),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.arrow_back,
+                    color: Color(0xFF334155),
+                    size: 20,
+                  ),
+                ),
               ),
-              child: const Icon(
-                Icons.arrow_back,
-                color: Color(0xFF334155),
-                size: 20,
+              const SizedBox(width: 16),
+              Text(
+                'Riwayat Laporan',
+                style: GoogleFonts.inter(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: const Color(0xFF1E293B),
+                ),
               ),
-            ),
+              const Spacer(),
+              GestureDetector(
+                onTap: isGlobalRefreshing ? null : _refreshReports,
+                child: Semantics(
+                  label: isGlobalRefreshing 
+                      ? 'Sedang memuat ulang laporan'
+                      : 'Muat ulang laporan',
+                  button: true,
+                  enabled: !isGlobalRefreshing,
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: isGlobalRefreshing
+                          ? const Color(0xFF9AA6B2).withAlpha(25)
+                          : const Color(0xFF9AA6B2).withAlpha(51),
+                      shape: BoxShape.circle,
+                    ),
+                    child: isGlobalRefreshing
+                        ? SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                const Color(0xFF334155).withValues(alpha: 0.6),
+                              ),
+                            ),
+                          )
+                        : const Icon(
+                            Icons.refresh,
+                            color: Color(0xFF334155),
+                            size: 20,
+                          ),
+                  ),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 16),
-          Text(
-            'Riwayat Laporan',
-            style: GoogleFonts.inter(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: const Color(0xFF1E293B),
-            ),
-          ),
-          const Spacer(),
-          GestureDetector(
-            onTap: _refreshReports,
-            child: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: const Color(0xFF9AA6B2).withAlpha(51),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.refresh,
-                color: Color(0xFF334155),
-                size: 20,
-              ),
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 

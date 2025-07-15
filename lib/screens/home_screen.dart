@@ -10,8 +10,10 @@ import '../main.dart';
 import '../models/report.dart';
 import '../providers/auth_provider.dart';
 import '../providers/report_provider.dart';
+import '../providers/global_refresh_provider.dart';
 import '../widgets/gradient_background.dart';
 import '../widgets/report_action_button.dart';
+import '../widgets/smart_connection_status_card.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -93,24 +95,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
 
   Future<void> _refreshAllData() async {
     if (!mounted) return;
-    // Cek koneksi internet
-    final connectivityService = ref.read(connectivityServiceProvider);
-    await connectivityService.checkInternetConnection();
-    if (!mounted) return;
-
-    // Update user profile dan data lain secara paralel
-    final authNotifier = ref.read(authProvider.notifier);
-    final apiService = ref.read(apiServiceProvider);
-    final profileFuture = apiService.getUserProfile();
-    final reportsFuture = ref.read(reportProvider.notifier).loadUserReports();
-    final userStatsFuture = ref.read(reportProvider.notifier).loadUserStats();
-    final globalStatsFuture = ref.read(reportProvider.notifier).loadGlobalStats();
-
-    final profileResult = await profileFuture;
-    if (profileResult['success'] && mounted) {
-      authNotifier.updateUser(profileResult['user']);
-    }
-    await Future.wait([reportsFuture, userStatsFuture, globalStatsFuture]);
+    final globalRefresh = ref.read(globalRefreshProvider);
+    await globalRefresh();
   }
 
   @override
@@ -122,56 +108,63 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
     
 
     return Scaffold(
-      body: GradientBackground(
-        colors: const [
-          Color(0xFFEFF6FF),  // Light blue
-          Color(0xFFEDE9FE),  // Light purple
-          Color(0xFFFDF2F8),  // Light pink
-          Color(0xFFF0F9FF),  // Lightest blue
-        ],
-        child: Column(
-          children: [
-            // Top safe area with solid background
-            Container(
-              height: MediaQuery.of(context).padding.top,
-              color: const Color(0xFFEFF6FF), // Match the top color of gradient
-            ),
-            // Content area
-            Expanded(
-              child: RefreshIndicator(
-                onRefresh: _refreshAllData,
-                child: CustomScrollView(
-                  physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
-                  slivers: [
-                    _buildAppBar(user),
-                    SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.all(20.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _buildReportButton(),
-                            const SizedBox(height: 24),
-                            _buildStatsSection(reportState),
-                            const SizedBox(height: 24),
-                            _buildQuickActions(),
-                            const SizedBox(height: 24),
-                            _buildActivityFeed(reports),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
+      body: Stack(
+        children: [
+          GradientBackground(
+            colors: const [
+              Color(0xFFEFF6FF),  // Light blue
+              Color(0xFFEDE9FE),  // Light purple
+              Color(0xFFFDF2F8),  // Light pink
+              Color(0xFFF0F9FF),  // Lightest blue
+            ],
+            child: Column(
+              children: [
+                // Top safe area with solid background
+                Container(
+                  height: MediaQuery.of(context).padding.top,
+                  color: const Color(0xFFEFF6FF), // Match the top color of gradient
                 ),
-              ),
+                // Content area
+                Expanded(
+                  child: RefreshIndicator(
+                    onRefresh: _refreshAllData,
+                    child: CustomScrollView(
+                      physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+                      slivers: [
+                        _buildAppBar(user),
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            padding: const EdgeInsets.all(20.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _buildReportButton(),
+                                const SizedBox(height: 24),
+                                _buildStatsSection(reportState),
+                                const SizedBox(height: 24),
+                                _buildQuickActions(),
+                                const SizedBox(height: 24),
+                                _buildActivityFeed(reports),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                // Bottom safe area with solid background
+                Container(
+                  height: bottomSafePadding,
+                  color: const Color(0xFFF0F9FF), // Match the bottom color of gradient
+                ),
+              ],
             ),
-            // Bottom safe area with solid background
-            Container(
-              height: bottomSafePadding,
-              color: const Color(0xFFF0F9FF), // Match the bottom color of gradient
-            ),
-          ],
-        ),
+          ),
+          
+          // Connection status overlay - HARUS di paling atas
+          const SmartConnectionStatusCard(),
+        ],
       ),
     );
   }

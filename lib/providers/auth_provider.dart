@@ -123,13 +123,13 @@ class AuthNotifier extends StateNotifier<AuthState> {
         return true;
       }
       
-      // If refresh failed, user needs to login again
-      developer.log('Token refresh failed, logging out', name: 'AuthProvider');
-      await logout();
+      // If refresh failed, hanya logout jika bukan masalah koneksi
+      developer.log('Token refresh failed', name: 'AuthProvider');
       return false;
       
     } catch (e) {
       developer.log('Error refreshing token: $e', name: 'AuthProvider');
+      // Jangan logout otomatis pada error koneksi, biar user tetap dalam mode offline
       return false;
     }
   }
@@ -271,6 +271,52 @@ class AuthNotifier extends StateNotifier<AuthState> {
     await _prefs.remove('user_data');
     await _prefs.remove('username');
     developer.log('Stored auth data cleared', name: 'AuthProvider');
+  }
+
+  // Method untuk refresh connection - digunakan oleh global refresh provider
+  Future<bool> refreshConnection() async {
+    developer.log('Attempting to refresh connection', name: 'AuthProvider');
+    
+    try {
+      // Jika tidak ada token, tidak bisa refresh
+      if (state.token == null) {
+        developer.log('No token available for refresh', name: 'AuthProvider');
+        return false;
+      }
+      
+      // Coba validate token dengan server
+      final result = await _apiService.getUserProfile();
+      
+      if (result['success']) {
+        developer.log('Connection refresh successful', name: 'AuthProvider');
+        // Update user profile jika berhasil
+        if (result['user'] != null) {
+          updateUser(result['user']);
+        }
+        return true;
+      } else {
+        // Token invalid, coba refresh token tapi jangan logout otomatis
+        developer.log('Token invalid, attempting token refresh', name: 'AuthProvider');
+        return await _refreshToken();
+      }
+    } catch (e) {
+      developer.log('Error refreshing connection: $e', name: 'AuthProvider');
+      // Return false tapi jangan logout, biar user tetap dalam mode offline
+      return false;
+    }
+  }
+  
+  // Method untuk check koneksi sederhana
+  Future<bool> checkConnection() async {
+    try {
+      if (state.token == null) return false;
+      
+      final result = await _apiService.getUserProfile();
+      return result['success'];
+    } catch (e) {
+      developer.log('Error checking connection: $e', name: 'AuthProvider');
+      return false;
+    }
   }
 }
 

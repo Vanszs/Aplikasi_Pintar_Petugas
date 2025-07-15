@@ -5,6 +5,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'notification_service_fixed.dart';
+import '../models/report.dart';
 
 // Top-level background message handler
 @pragma('vm:entry-point')
@@ -26,6 +28,7 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
 class FCMService extends ChangeNotifier {
   static final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
+  final NotificationService _notificationService = NotificationService();
   bool _isInitialized = false;
   String? _fcmToken;
   Function(String)? _onTokenRefresh;
@@ -33,7 +36,6 @@ class FCMService extends ChangeNotifier {
   
   // Enhanced deduplication tracking
   final Map<String, DateTime> _recentFcmNotifications = {};
-  static const Duration _fcmDeduplicationWindow = Duration(seconds: 2);
   
   // Session tracking
   String? _currentSessionId;
@@ -61,18 +63,18 @@ class FCMService extends ChangeNotifier {
 
     final now = DateTime.now();
     
-    // Clean old entries
+    // Clean old entries (reduce window to 1 second for better responsiveness)
+    final deduplicationWindow = const Duration(seconds: 1);
     _recentFcmNotifications.removeWhere((key, time) => 
-      now.difference(time) > _fcmDeduplicationWindow);
+      now.difference(time) > deduplicationWindow);
     
     // Check for recent duplicates
     if (_recentFcmNotifications.containsKey(messageKey)) {
       final lastProcessed = _recentFcmNotifications[messageKey]!;
       final timeSinceLastProcessed = now.difference(lastProcessed);
-      developer.log('Duplicate FCM message detected: $messageKey (last processed ${timeSinceLastProcessed.inSeconds}s ago)', name: 'FCMService');
       
-      if (timeSinceLastProcessed.inSeconds < 2) {
-        developer.log('Blocking duplicate message: $messageKey', name: 'FCMService');
+      if (timeSinceLastProcessed.inMilliseconds < 500) { // Reduce to 500ms
+        developer.log('Blocking recent duplicate message: $messageKey (${timeSinceLastProcessed.inMilliseconds}ms ago)', name: 'FCMService');
         return false;
       }
     }
@@ -106,7 +108,12 @@ class FCMService extends ChangeNotifier {
     try {
       developer.log('=== INITIALIZING FCM SERVICE ===', name: 'FCMService');
       
+      // Initialize notification service first
+      developer.log('Initializing notification service...', name: 'FCMService');
+      // The notification service initializes automatically via constructor
+      
       // Request permission for notifications
+      developer.log('Requesting FCM permissions...', name: 'FCMService');
       NotificationSettings settings = await _firebaseMessaging.requestPermission(
         alert: true,
         announcement: false,
@@ -118,6 +125,9 @@ class FCMService extends ChangeNotifier {
       );
 
       developer.log('FCM Permission Status: ${settings.authorizationStatus}', name: 'FCMService');
+      developer.log('FCM Alert Setting: ${settings.alert}', name: 'FCMService');
+      developer.log('FCM Sound Setting: ${settings.sound}', name: 'FCMService');
+      developer.log('FCM Badge Setting: ${settings.badge}', name: 'FCMService');
 
       if (settings.authorizationStatus == AuthorizationStatus.authorized) {
         developer.log('FCM: User granted permission', name: 'FCMService');
@@ -125,7 +135,7 @@ class FCMService extends ChangeNotifier {
         developer.log('FCM: User granted provisional permission', name: 'FCMService');
       } else {
         developer.log('FCM: User declined or has not accepted permission', name: 'FCMService');
-        return;
+        // Still continue to get token in case permissions change later
       }
 
       // Set FCM presentation options for foreground notifications
@@ -134,6 +144,7 @@ class FCMService extends ChangeNotifier {
         badge: true,
         sound: true,
       );
+      developer.log('FCM foreground presentation options set', name: 'FCMService');
 
 
       // Get the token
@@ -162,9 +173,11 @@ class FCMService extends ChangeNotifier {
 
       // Handle foreground messages
       FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
+      developer.log('FCM foreground message listener set up', name: 'FCMService');
 
       // Handle message opened app
       FirebaseMessaging.onMessageOpenedApp.listen(_handleMessageOpenedApp);
+      developer.log('FCM message opened app listener set up', name: 'FCMService');
 
       // Check for any messages received while app was terminated
       RemoteMessage? initialMessage = await FirebaseMessaging.instance.getInitialMessage();
@@ -218,11 +231,13 @@ class FCMService extends ChangeNotifier {
       developer.log('No notification payload in message', name: 'FCMService');
     }
     
+    // Show custom notification with custom sound (foreground only)
+    await _showCustomNotificationForForegroundMessage(message);
+    
     // Process additional actions (like updating app state, triggering UI updates, etc.)
     _processMessageData(message);
     
-    // For foreground messages, the system should automatically show the notification
-    // due to setForegroundNotificationPresentationOptions, but let's also notify listeners
+    // Notify listeners for UI updates
     notifyListeners();
     
     developer.log('=== END FCM FOREGROUND MESSAGE ===', name: 'FCMService');
@@ -242,6 +257,63 @@ class FCMService extends ChangeNotifier {
     
     // FCM automatically shows notification in background
     // You can process additional data here if needed
+  }
+
+  // Show custom notification for foreground messages with custom sound
+  Future<void> _showCustomNotificationForForegroundMessage(RemoteMessage message) async {
+    try {
+      final data = message.data;
+      
+      // Only show custom notification for 'new_report' type messages
+      if (data['type'] == 'new_report') {
+        // Create a Report object from the message data
+        final report = Report(
+          id: int.tryParse(data['reportId'] ?? '0') ?? 0,
+          userId: int.tryParse(data['userId'] ?? '0') ?? 0,
+          address: data['address'] ?? '',
+          phone: data['userPhone'] ?? '',
+          userName: data['userName'] ?? 'Unknown',
+          jenisLaporan: data['jenisLaporan'] ?? 'Laporan',
+          status: data['status'] ?? 'pending',
+          createdAt: DateTime.now(),
+        );
+        
+        // Show custom notification with sound
+        await _notificationService.showNewReportNotification(report);
+        developer.log('Custom notification shown for new report', name: 'FCMService');
+      } else {
+        // For other types, show notification using default FCM (fallback)
+        developer.log('Showing default notification for message type: ${data['type']}', name: 'FCMService');
+        
+        // Show notification manually since we're in foreground
+        await _showFallbackNotification(message);
+      }
+    } catch (e) {
+      developer.log('Error showing custom notification: $e', name: 'FCMService');
+      
+      // Fallback: show simple notification
+      try {
+        await _showFallbackNotification(message);
+      } catch (fallbackError) {
+        developer.log('Error showing fallback notification: $fallbackError', name: 'FCMService');
+      }
+    }
+  }
+
+  // Fallback notification method
+  Future<void> _showFallbackNotification(RemoteMessage message) async {
+    try {
+      final title = message.notification?.title ?? 'Notifikasi';
+      final body = message.notification?.body ?? 'Ada pesan baru';
+      
+      await _notificationService.showSimpleNotification(
+        title: title,
+        body: body,
+        payload: message.data.toString(),
+      );
+    } catch (e) {
+      developer.log('Error in fallback notification: $e', name: 'FCMService');
+    }
   }
 
 
@@ -345,6 +417,20 @@ class FCMService extends ChangeNotifier {
   void _generateNewSession() {
     _currentSessionId = 'session_${DateTime.now().millisecondsSinceEpoch}_${DateTime.now().microsecond}';
     developer.log('Generated new FCM session: $_currentSessionId', name: 'FCMService');
+  }
+
+  // Test method to send a sample notification
+  Future<void> testNotification() async {
+    try {
+      await _notificationService.showSimpleNotification(
+        title: 'Test FCM Notification',
+        body: 'Ini adalah test notifikasi untuk memastikan sistem berfungsi',
+        payload: 'test_notification',
+      );
+      developer.log('Test notification sent successfully', name: 'FCMService');
+    } catch (e) {
+      developer.log('Error sending test notification: $e', name: 'FCMService');
+    }
   }
 }
 

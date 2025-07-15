@@ -29,6 +29,13 @@ class NotificationService extends ChangeNotifier {
       importance: Importance.high,
     );
 
+    const AndroidNotificationChannel generalChannel = AndroidNotificationChannel(
+      'general_notifications',
+      'Notifikasi Umum',
+      description: 'Notifikasi umum aplikasi',
+      importance: Importance.high,
+    );
+
     final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
         FlutterLocalNotificationsPlugin();
     
@@ -37,6 +44,7 @@ class NotificationService extends ChangeNotifier {
     
     await androidPlugin?.createNotificationChannel(newReportsChannel);
     await androidPlugin?.createNotificationChannel(statusUpdatesChannel);
+    await androidPlugin?.createNotificationChannel(generalChannel);
     
     developer.log('Notification channels created', name: 'NotificationService');
   }
@@ -325,6 +333,49 @@ class NotificationService extends ChangeNotifier {
       developer.log('Status update notification shown for report #$reportId: $status', name: 'NotificationService');
     } catch (e) {
       developer.log('Error showing status update notification: $e', name: 'NotificationService');
+    }
+  }
+
+  // Simple notification method for general messages
+  Future<void> showSimpleNotification({
+    required String title,
+    required String body,
+    String? payload,
+  }) async {
+    try {
+      if (!_isInitialized) {
+        developer.log('Notifications not initialized, cannot show simple notification', name: 'NotificationService');
+        return;
+      }
+
+      const AndroidNotificationDetails androidNotificationDetails = AndroidNotificationDetails(
+        'general_notifications',
+        'Notifikasi Umum',
+        channelDescription: 'Notifikasi umum aplikasi',
+        importance: Importance.high,
+        priority: Priority.high,
+        showWhen: true,
+        icon: '@drawable/ic_notification',
+        largeIcon: DrawableResourceAndroidBitmap('@mipmap/launcher_icon'),
+        enableVibration: true,
+        playSound: true,
+      );
+
+      const NotificationDetails notificationDetails = NotificationDetails(
+        android: androidNotificationDetails,
+      );
+
+      await _flutterLocalNotificationsPlugin.show(
+        999, // Use fixed ID for simple notifications
+        title,
+        body,
+        notificationDetails,
+        payload: payload,
+      );
+      
+      developer.log('Simple notification shown: $title', name: 'NotificationService');
+    } catch (e) {
+      developer.log('Error showing simple notification: $e', name: 'NotificationService');
     }
   }
 }

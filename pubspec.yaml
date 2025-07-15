@@ -80,3 +80,4 @@ flutter:
     - assets/animations/loading.json
     - assets/animations/success.json
     - assets/animations/empty.json
+    - assets/animations/no_internet.json
