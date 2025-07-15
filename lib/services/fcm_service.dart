@@ -15,11 +15,17 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   // make sure you call `initializeApp` before using other Firebase services.
   await Firebase.initializeApp();
   
-  developer.log('Handling a background message: ${message.messageId}', name: 'FCMService');
+  developer.log('🔔🔔🔔 Handling a background message: ${message.messageId}', name: 'FCMService');
   
   // You can access message data here
   if (message.data.isNotEmpty) {
     developer.log('Background message data: ${message.data}', name: 'FCMService');
+  }
+  
+  // Force system to wake up for important messages
+  if (message.data['type'] == 'new_report') {
+    developer.log('🚨 HIGH PRIORITY REPORT NOTIFICATION RECEIVED 🚨', name: 'FCMService');
+    // Note: Android system will handle this automatically with correct FCM priority
   }
   
   // Handle the message here
@@ -112,14 +118,14 @@ class FCMService extends ChangeNotifier {
       developer.log('Initializing notification service...', name: 'FCMService');
       // The notification service initializes automatically via constructor
       
-      // Request permission for notifications
-      developer.log('Requesting FCM permissions...', name: 'FCMService');
+      // Request permission for notifications with critical alerts
+      developer.log('Requesting FCM permissions with high priority...', name: 'FCMService');
       NotificationSettings settings = await _firebaseMessaging.requestPermission(
         alert: true,
-        announcement: false,
+        announcement: true, // Allow announcements
         badge: true,
-        carPlay: false,
-        criticalAlert: false,
+        carPlay: true,  // Allow notifications in car play
+        criticalAlert: true, // Request critical alert permission
         provisional: false,
         sound: true,
       );
@@ -202,10 +208,17 @@ class FCMService extends ChangeNotifier {
 
   // Handle FCM foreground messages - Ensure notifications show when app is open
   void _handleForegroundMessage(RemoteMessage message) async {
-    developer.log('=== FCM FOREGROUND MESSAGE RECEIVED ===', name: 'FCMService');
+    developer.log('🔔🔔🔔 === FCM FOREGROUND MESSAGE RECEIVED === 🔔🔔🔔', name: 'FCMService');
     developer.log('Message ID: ${message.messageId}', name: 'FCMService');
     developer.log('Message data: ${message.data}', name: 'FCMService');
     developer.log('Notifications enabled: $_notificationsEnabled', name: 'FCMService');
+    
+    // Check for high-priority messages like new reports
+    final bool isHighPriority = message.data['type'] == 'new_report';
+    
+    if (isHighPriority) {
+      developer.log('🚨🚨🚨 HIGH PRIORITY MESSAGE RECEIVED 🚨🚨🚨', name: 'FCMService');
+    }
 
     // Create message key for deduplication
     String messageKey = 'fcm_${message.messageId ?? DateTime.now().millisecondsSinceEpoch}';
@@ -217,8 +230,12 @@ class FCMService extends ChangeNotifier {
       messageKey = 'fcm_status_update_${message.data['reportId']}_${message.data['status'] ?? 'unknown'}';
     }
 
-    // Check if we should process this message
-    if (!_shouldProcessFcmMessage(messageKey, message.data)) {
+    // For high-priority messages, always process regardless of deduplication
+    if (isHighPriority) {
+      developer.log('Processing high-priority message regardless of deduplication', name: 'FCMService');
+    } 
+    // For regular messages, check deduplication
+    else if (!_shouldProcessFcmMessage(messageKey, message.data)) {
       developer.log('FCM message processing skipped due to deduplication', name: 'FCMService');
       return;
     }
@@ -252,11 +269,50 @@ class FCMService extends ChangeNotifier {
   }
 
   static Future<void> _handleBackgroundMessage(RemoteMessage message) async {
-    developer.log('Handling background message: ${message.messageId}', name: 'FCMService');
+    developer.log('🔔 Handling background message: ${message.messageId}', name: 'FCMService');
     developer.log('Background message data: ${message.data}', name: 'FCMService');
     
-    // FCM automatically shows notification in background
-    // You can process additional data here if needed
+    try {
+      // For new_report messages we want to ensure proper wake-up
+      if (message.data['type'] == 'new_report') {
+        developer.log('🚨 Background: HIGH PRIORITY NEW REPORT 🚨', name: 'FCMService');
+        
+        // Add metadata to the message to indicate high priority for when app opens
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setBool('high_priority_wakeup', true);
+        await prefs.setInt('last_high_priority_time', DateTime.now().millisecondsSinceEpoch);
+        await prefs.setString('last_report_id', message.data['reportId'] ?? '');
+      }
+      
+      // Store the message ID to prevent duplicate processing when app opens
+      final prefs = await SharedPreferences.getInstance();
+      final messageId = message.messageId;
+      if (messageId != null) {
+        final recentMessages = prefs.getStringList('recent_background_messages') ?? [];
+        recentMessages.add('${messageId}_${DateTime.now().millisecondsSinceEpoch}');
+        
+        // Keep only last 10 messages
+        if (recentMessages.length > 10) {
+          recentMessages.removeRange(0, recentMessages.length - 10);
+        }
+        
+        await prefs.setStringList('recent_background_messages', recentMessages);
+      }
+
+      // Handle notifications - ensure it's shown to the user
+      // Create a notification service instance to show the notification
+      final notificationService = NotificationService();
+      await notificationService.showNotificationFromMessage(
+        message, 
+        isHighPriority: message.data['type'] == 'new_report',
+      );
+      
+      developer.log('Background notification displayed for message: ${message.messageId}', 
+          name: 'FCMService');
+    } catch (e, stackTrace) {
+      developer.log('Error handling background message: $e', name: 'FCMService');
+      developer.log('Stack trace: $stackTrace', name: 'FCMService');
+    }
   }
 
   // Show custom notification for foreground messages with custom sound
@@ -264,7 +320,7 @@ class FCMService extends ChangeNotifier {
     try {
       final data = message.data;
       
-      // Only show custom notification for 'new_report' type messages
+      // Always show custom notification for ALL FCM messages when app is in foreground
       if (data['type'] == 'new_report') {
         // Create a Report object from the message data
         final report = Report(
@@ -282,16 +338,14 @@ class FCMService extends ChangeNotifier {
         await _notificationService.showNewReportNotification(report);
         developer.log('Custom notification shown for new report', name: 'FCMService');
       } else {
-        // For other types, show notification using default FCM (fallback)
-        developer.log('Showing default notification for message type: ${data['type']}', name: 'FCMService');
-        
-        // Show notification manually since we're in foreground
+        // For ALL other types (including ones without type), show fallback notification
+        developer.log('Showing fallback notification for message type: ${data['type'] ?? 'unknown'}', name: 'FCMService');
         await _showFallbackNotification(message);
       }
     } catch (e) {
       developer.log('Error showing custom notification: $e', name: 'FCMService');
       
-      // Fallback: show simple notification
+      // Always fallback to simple notification if anything fails
       try {
         await _showFallbackNotification(message);
       } catch (fallbackError) {
@@ -430,6 +484,40 @@ class FCMService extends ChangeNotifier {
       developer.log('Test notification sent successfully', name: 'FCMService');
     } catch (e) {
       developer.log('Error sending test notification: $e', name: 'FCMService');
+    }
+  }
+
+  // Force show test notification for debugging
+  Future<void> forceTestNotification() async {
+    try {
+      developer.log('=== FORCING TEST NOTIFICATION ===', name: 'FCMService');
+      
+      // Test 1: Simple notification
+      await _notificationService.showSimpleNotification(
+        title: 'Test Simple Notification',
+        body: 'Ini adalah test notifikasi sederhana',
+        payload: 'test_simple',
+      );
+      developer.log('Simple test notification sent', name: 'FCMService');
+      
+      // Test 2: New report notification
+      final testReport = Report(
+        id: 999,
+        userId: 1,
+        address: 'Test Address',
+        phone: '081234567890',
+        userName: 'Test User',
+        jenisLaporan: 'Test Laporan',
+        status: 'pending',
+        createdAt: DateTime.now(),
+      );
+      
+      await _notificationService.showNewReportNotification(testReport);
+      developer.log('New report test notification sent', name: 'FCMService');
+      
+      developer.log('=== TEST NOTIFICATIONS COMPLETED ===', name: 'FCMService');
+    } catch (e) {
+      developer.log('Error in force test notification: $e', name: 'FCMService');
     }
   }
 }

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="96dp"
+    android:height="96dp"
+    android:viewportWidth="96"
+    android:viewportHeight="96">
+  <!-- Background circle -->
+  <path
+      android:fillColor="#2196F3"
+      android:pathData="M48,4C23.7,4 4,23.7 4,48C4,72.3 23.7,92 48,92C72.3,92 92,72.3 92,48C92,23.7 72.3,4 48,4Z"/>
+  <!-- Shield for Petugas (officer/security) theme -->
+  <path
+      android:fillColor="#FFFFFF"
+      android:pathData="M48,16L26,22V40C26,56.8 35.2,72.5 48,76C60.8,72.5 70,56.8 70,40V22L48,16M48,20.7L66,25.2V40C66,54.2 59.1,67.5 48,70.3C36.9,67.5 30,54.2 30,40V25.2L48,20.7Z"/>
+  <!-- Alert/notification bell icon -->
+  <path
+      android:fillColor="#FFFFFF"
+      android:pathData="M48,32A2,2 0 0,1 50,34V46A2,2 0 0,1 48,48A2,2 0 0,1 46,46V34A2,2 0 0,1 48,32M48,52A2,2 0 0,1 50,54A2,2 0 0,1 48,56A2,2 0 0,1 46,54A2,2 0 0,1 48,52Z"/>
+</vector>

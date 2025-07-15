@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'dart:developer' as developer;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import '../models/report.dart';
 
 class NotificationService extends ChangeNotifier {
@@ -74,12 +75,12 @@ class NotificationService extends ChangeNotifier {
       );
 
       _isInitialized = true;
-      developer.log('Notification service initialized successfully', name: 'NotificationService');
+      developer.log('NotificationService: Notification service initialized successfully', name: 'NotificationService');
       
       // Request permissions after initialization
       await requestNotificationPermissions();
     } catch (e) {
-      developer.log('Error initializing notification service: $e', name: 'NotificationService');
+      developer.log('NotificationService: Error initializing notification service: $e', name: 'NotificationService');
     }
   }
   
@@ -93,13 +94,13 @@ class NotificationService extends ChangeNotifier {
         final status = await Permission.notification.request();
         
         if (status.isGranted) {
-          developer.log('Android 13+ notification permission granted', name: 'NotificationService');
+          developer.log('NotificationService: Android 13+ notification permission granted', name: 'NotificationService');
           return true;
         } else if (status.isPermanentlyDenied) {
-          developer.log('Android 13+ notification permission permanently denied', name: 'NotificationService');
+          developer.log('NotificationService: Android 13+ notification permission permanently denied', name: 'NotificationService');
           return false;
         } else {
-          developer.log('Android 13+ notification permission denied', name: 'NotificationService');
+          developer.log('NotificationService: Android 13+ notification permission denied', name: 'NotificationService');
           return false;
         }
       }
@@ -110,27 +111,27 @@ class NotificationService extends ChangeNotifier {
       if (android != null) {
         try {
           final bool? granted = await android.requestNotificationsPermission();
-          developer.log('Android notification permission granted: $granted', name: 'NotificationService');
+          developer.log('NotificationService: Android notification permission granted: $granted', name: 'NotificationService');
           return granted ?? false;
         } catch (e) {
-          developer.log('Could not request notification permission: $e', name: 'NotificationService');
+          developer.log('NotificationService: Could not request notification permission: $e', name: 'NotificationService');
           // Fallback to checking if notifications are enabled
           try {
             final bool? enabled = await android.areNotificationsEnabled();
-            developer.log('Android notifications enabled (fallback check): $enabled', name: 'NotificationService');
+            developer.log('NotificationService: Android notifications enabled (fallback check): $enabled', name: 'NotificationService');
             return enabled ?? false;
           } catch (e2) {
-            developer.log('Could not check notification status: $e2', name: 'NotificationService');
+            developer.log('NotificationService: Could not check notification status: $e2', name: 'NotificationService');
             return false;
           }
         }
       }
       
       // For iOS, permissions are requested during initialization
-      developer.log('Notification permissions requested successfully', name: 'NotificationService');
+      developer.log('NotificationService: Notification permissions requested successfully', name: 'NotificationService');
       return true;
     } catch (e) {
-      developer.log('Error requesting notification permissions: $e', name: 'NotificationService');
+      developer.log('NotificationService: Error requesting notification permissions: $e', name: 'NotificationService');
       return false;
     }
   }
@@ -161,10 +162,10 @@ class NotificationService extends ChangeNotifier {
       if (android != null) {
         try {
           final bool? enabled = await android.areNotificationsEnabled();
-          developer.log('Android notifications enabled: $enabled', name: 'NotificationService');
+          developer.log('NotificationService: Android notifications enabled: $enabled', name: 'NotificationService');
           return enabled ?? false;
         } catch (e) {
-          developer.log('Could not check notification status: $e', name: 'NotificationService');
+          developer.log('NotificationService: Could not check notification status: $e', name: 'NotificationService');
           return false;
         }
       }
@@ -172,7 +173,7 @@ class NotificationService extends ChangeNotifier {
       // For iOS, assume permissions are granted if service is initialized
       return _isInitialized;
     } catch (e) {
-      developer.log('Error checking notification permissions: $e', name: 'NotificationService');
+      developer.log('NotificationService: Error checking notification permissions: $e', name: 'NotificationService');
       return false;
     }
   }
@@ -199,7 +200,9 @@ class NotificationService extends ChangeNotifier {
       enableVibration: false,
       category: AndroidNotificationCategory.alarm,
       autoCancel: true,
-      icon: '@mipmap/launcher_icon',
+      icon: '@drawable/ic_notification',
+      largeIcon: DrawableResourceAndroidBitmap('@drawable/ic_notification_large'),
+      colorized: true,
     );
   }
 
@@ -207,23 +210,23 @@ class NotificationService extends ChangeNotifier {
     // Check if we have permission before trying to show notification
     final hasPermission = await checkNotificationPermissions();
     if (!hasPermission) {
-      developer.log('No notification permission, skipping notification for report ${report.id}', name: 'NotificationService');
+      developer.log('NotificationService: No notification permission, skipping notification for report ${report.id}', name: 'NotificationService');
       return;
     }
 
     // Ensure initialization is complete before showing notification
     if (!_isInitialized) {
-      developer.log('Notification service not initialized yet, retrying initialization', name: 'NotificationService');
+      developer.log('NotificationService: Notification service not initialized yet, retrying initialization', name: 'NotificationService');
       try {
         await _initializeNotifications();
         await requestNotificationPermissions(); // Make sure permissions are granted
       } catch (e) {
-        developer.log('Error during notification init retry: $e', name: 'NotificationService');
+        developer.log('NotificationService: Error during notification init retry: $e', name: 'NotificationService');
       }
       
       // Double-check initialization status
       if (!_isInitialized) {
-        developer.log('Failed to initialize notification service after retry', name: 'NotificationService');
+        developer.log('NotificationService: Failed to initialize notification service after retry', name: 'NotificationService');
         // Try one more time with a delay - this helps in some Android environments
         await Future.delayed(Duration(milliseconds: 500));
         await _initializeNotifications();
@@ -257,19 +260,19 @@ class NotificationService extends ChangeNotifier {
         payload: report.id.toString(),
       );
 
-      developer.log('New report notification displayed for ID: ${report.id}', name: 'NotificationService');
+      developer.log('NotificationService: New report notification displayed for ID: ${report.id}', name: 'NotificationService');
     } catch (e) {
-      developer.log('Error showing notification: $e', name: 'NotificationService');
+      developer.log('NotificationService: Error showing notification: $e', name: 'NotificationService');
       
       // Try to check and request permissions again
       try {
         final hasPermissionAfterError = await checkNotificationPermissions();
         if (!hasPermissionAfterError) {
-          developer.log('Notification permission lost, attempting to re-request', name: 'NotificationService');
+          developer.log('NotificationService: Notification permission lost, attempting to re-request', name: 'NotificationService');
           await requestNotificationPermissions();
         }
       } catch (permissionError) {
-        developer.log('Error checking notification permissions after notification failure: $permissionError', name: 'NotificationService');
+        developer.log('NotificationService: Error checking notification permissions after notification failure: $permissionError', name: 'NotificationService');
       }
     }
   }
@@ -330,9 +333,9 @@ class NotificationService extends ChangeNotifier {
         notificationDetails,
       );
       
-      developer.log('Status update notification shown for report #$reportId: $status', name: 'NotificationService');
+      developer.log('NotificationService: Status update notification shown for report #$reportId: $status', name: 'NotificationService');
     } catch (e) {
-      developer.log('Error showing status update notification: $e', name: 'NotificationService');
+      developer.log('NotificationService: Error showing status update notification: $e', name: 'NotificationService');
     }
   }
 
@@ -344,7 +347,7 @@ class NotificationService extends ChangeNotifier {
   }) async {
     try {
       if (!_isInitialized) {
-        developer.log('Notifications not initialized, cannot show simple notification', name: 'NotificationService');
+        developer.log('NotificationService: Notifications not initialized, cannot show simple notification', name: 'NotificationService');
         return;
       }
 
@@ -356,9 +359,13 @@ class NotificationService extends ChangeNotifier {
         priority: Priority.high,
         showWhen: true,
         icon: '@drawable/ic_notification',
-        largeIcon: DrawableResourceAndroidBitmap('@mipmap/launcher_icon'),
+        largeIcon: DrawableResourceAndroidBitmap('@drawable/ic_notification_large'),
         enableVibration: true,
         playSound: true,
+        color: Color(0xFF2196F3), // Blue color for Petugas app
+        colorized: true,
+        category: AndroidNotificationCategory.message,
+        visibility: NotificationVisibility.public,
       );
 
       const NotificationDetails notificationDetails = NotificationDetails(
@@ -373,9 +380,156 @@ class NotificationService extends ChangeNotifier {
         payload: payload,
       );
       
-      developer.log('Simple notification shown: $title', name: 'NotificationService');
+      developer.log('NotificationService: Simple notification shown: $title', name: 'NotificationService');
     } catch (e) {
-      developer.log('Error showing simple notification: $e', name: 'NotificationService');
+      developer.log('NotificationService: Error showing simple notification: $e', name: 'NotificationService');
+    }
+  }
+
+  // Force notification test (emergency test)
+  Future<void> forceEmergencyNotificationTest() async {
+    try {
+      developer.log('🚨🚨🚨 NotificationService: FORCING EMERGENCY TEST NOTIFICATION 🚨🚨🚨', name: 'NotificationService');
+      
+      // Create notification channel for high priority alerts
+      const AndroidNotificationChannel emergencyChannel = AndroidNotificationChannel(
+        'emergency_alerts',
+        'Emergency Alerts',
+        description: 'Notifikasi darurat yang sangat penting',
+        importance: Importance.max,
+        sound: RawResourceAndroidNotificationSound('notification_sound'),
+        enableVibration: true,
+        playSound: true,
+        showBadge: true,
+        enableLights: true,
+      );
+
+      final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+          FlutterLocalNotificationsPlugin();
+      
+      final androidPlugin = flutterLocalNotificationsPlugin
+          .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+      
+      await androidPlugin?.createNotificationChannel(emergencyChannel);
+
+      // Send immediate emergency test notification
+      const AndroidNotificationDetails androidNotificationDetails = AndroidNotificationDetails(
+        'emergency_alerts',
+        'Emergency Alerts',
+        channelDescription: 'Notifikasi darurat yang sangat penting',
+        importance: Importance.max,
+        priority: Priority.max,
+        showWhen: true,
+        icon: '@drawable/ic_notification',
+        largeIcon: DrawableResourceAndroidBitmap('@drawable/ic_notification_large'),
+        enableVibration: true,
+        playSound: true,
+        color: Color(0xFFFF0000), // Red color for emergency
+        colorized: true,
+        fullScreenIntent: true,
+        category: AndroidNotificationCategory.alarm,
+        visibility: NotificationVisibility.public,
+        ticker: 'TEST EMERGENCY NOTIFICATION',
+        ongoing: true, // Make it persistent
+      );
+
+      const NotificationDetails notificationDetails = NotificationDetails(
+        android: androidNotificationDetails,
+      );
+
+      await _flutterLocalNotificationsPlugin.show(
+        9999, // Emergency test ID
+        '🚨 EMERGENCY TEST NOTIFICATION',
+        'This is an emergency test notification with highest priority. If you see this, the notification system is working.',
+        notificationDetails,
+      );
+      
+      developer.log('NotificationService: Emergency test notification sent successfully', name: 'NotificationService');
+    } catch (e) {
+      developer.log('NotificationService: Error sending emergency test notification: $e', name: 'NotificationService');
+    }
+  }
+
+  // Method to handle notifications from FCM message
+  Future<void> showNotificationFromMessage(RemoteMessage message, {bool isHighPriority = false}) async {
+    try {
+      developer.log('NotificationService: Showing notification from FCM message: ${message.messageId}', name: 'NotificationService');
+      developer.log('NotificationService: Message data: ${message.data}', name: 'NotificationService');
+      developer.log('NotificationService: Message notification: ${message.notification?.title} / ${message.notification?.body}', name: 'NotificationService');
+      
+      // Check if we have permission before trying to show notification
+      final hasPermission = await checkNotificationPermissions();
+      if (!hasPermission) {
+        developer.log('NotificationService: No notification permission, skipping notification', name: 'NotificationService');
+        return;
+      }
+
+      // Ensure initialization is complete
+      if (!_isInitialized) {
+        developer.log('NotificationService: Notification service not initialized yet, initializing now', name: 'NotificationService');
+        await _initializeNotifications();
+      }
+
+      final data = message.data;
+      
+      // Handle different message types
+      switch (data['type']) {
+        case 'new_report':
+          // Create a Report object from the message data
+          final report = Report(
+            id: int.tryParse(data['reportId'] ?? '0') ?? 0,
+            userId: int.tryParse(data['userId'] ?? '0') ?? 0,
+            address: data['address'] ?? 'Alamat tidak tersedia',
+            phone: data['userPhone'] ?? '',
+            userName: data['userName'] ?? 'Pengguna',
+            jenisLaporan: data['jenisLaporan'] ?? 'Laporan Baru',
+            status: data['status'] ?? 'pending',
+            createdAt: DateTime.now(),
+          );
+          
+          // Show notification with report details
+          await showNewReportNotification(report);
+          developer.log('NotificationService: New report notification displayed for ID: ${report.id}', name: 'NotificationService');
+          break;
+          
+        case 'status_update':
+          // Show status update notification
+          final reportId = int.tryParse(data['reportId'] ?? '0') ?? 0;
+          final status = data['status'] ?? 'updated';
+          
+          await showStatusUpdateNotification(reportId, status);
+          developer.log('NotificationService: Status update notification displayed for report #$reportId', name: 'NotificationService');
+          break;
+          
+        default:
+          // For all other types, use data from the notification payload or fallback to defaults
+          final title = message.notification?.title ?? data['title'] ?? 'Notifikasi Baru';
+          final body = message.notification?.body ?? data['body'] ?? 'Ada pesan baru untuk Anda';
+          
+          await showSimpleNotification(
+            title: title,
+            body: body,
+            payload: message.data.toString(),
+          );
+          developer.log('NotificationService: Generic notification displayed with title: $title', name: 'NotificationService');
+          break;
+      }
+    } catch (e) {
+      developer.log('NotificationService: Error showing notification from message: $e', name: 'NotificationService');
+      
+      // Fallback to showing a simple notification if anything fails
+      try {
+        final title = message.notification?.title ?? 'Notifikasi';
+        final body = message.notification?.body ?? 'Ada pesan baru';
+        
+        await showSimpleNotification(
+          title: title,
+          body: body,
+          payload: message.data.toString(),
+        );
+      } catch (fallbackError) {
+        developer.log('NotificationService: Error showing fallback notification: $fallbackError', name: 'NotificationService');
+      }
     }
   }
 }

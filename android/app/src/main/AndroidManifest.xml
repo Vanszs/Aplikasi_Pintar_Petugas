@@ -30,6 +30,10 @@
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
     <!-- Exact alarm permission for Android 12+ -->
     <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+    <!-- High priority FCM permissions -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.RECEIVE_WAP_PUSH" />
+    <uses-permission android:name="com.google.android.c2dm.permission.RECEIVE" />
     
     <application
         android:label="Petugas Pintar"
@@ -80,21 +84,48 @@
         <!-- Firebase Messaging Service -->
         <service
             android:name="com.google.firebase.messaging.FirebaseMessagingService"
-            android:exported="false">
-            <intent-filter>
+            android:exported="false"
+            android:directBootAware="true"
+            android:stopWithTask="false">
+            <intent-filter android:priority="1000"> <!-- High priority -->
                 <action android:name="com.google.firebase.MESSAGING_EVENT" />
+                <action android:name="com.google.android.c2dm.intent.RECEIVE" />
             </intent-filter>
         </service>
+        
+        <!-- Firebase Push Receiver -->
+        <receiver
+            android:name="com.google.firebase.iid.FirebaseInstanceIdReceiver"
+            android:exported="true"
+            android:permission="com.google.android.c2dm.permission.SEND">
+            <intent-filter>
+                <action android:name="com.google.android.c2dm.intent.RECEIVE" />
+                <category android:name="${applicationId}" />
+            </intent-filter>
+        </receiver>
 
         <!-- Firebase Default Icon -->
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_icon"
             android:resource="@drawable/ic_notification" />
 
+        <!-- Firebase Large Icon -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_large_icon"
+            android:resource="@drawable/ic_notification_large" />
+
         <!-- Firebase Default Channel ID -->
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"
-            android:value="petugas_channel" />
+            android:value="new_reports" />
+            
+        <!-- Firebase High Priority -->
+        <meta-data
+            android:name="firebase_messaging_auto_init_enabled"
+            android:value="true" />
+        <meta-data
+            android:name="delivery_metrics_exported_to_big_query_enabled"
+            android:value="true" />
 
         <!-- Auto-init Firebase Analytics (disabled for now) -->
         <meta-data
