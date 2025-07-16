@@ -7,6 +7,7 @@ class CacheService {
   static const String _reportsKey = 'cached_reports';
   static const String _userStatsKey = 'cached_user_stats';
   static const String _globalStatsKey = 'cached_global_stats';
+  static const String _reportDetailsKey = 'cached_report_details';
   static const String _lastUpdateKey = 'cache_last_update';
   
   // Cache duration in hours
@@ -126,6 +127,67 @@ class CacheService {
     }
   }
 
+  // Save report detail to cache
+  static Future<void> saveReportDetail(int reportId, Report report) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final currentDetailsJson = prefs.getString(_reportDetailsKey);
+      Map<String, dynamic> reportDetails = {};
+      
+      if (currentDetailsJson != null) {
+        reportDetails = json.decode(currentDetailsJson) as Map<String, dynamic>;
+      }
+      
+      reportDetails[reportId.toString()] = report.toJson();
+      await prefs.setString(_reportDetailsKey, json.encode(reportDetails));
+      developer.log('Saved report detail for ID $reportId to cache', name: 'CacheService');
+    } catch (e) {
+      developer.log('Error saving report detail to cache: $e', name: 'CacheService');
+    }
+  }
+
+  // Load report detail from cache
+  static Future<Report?> loadReportDetail(int reportId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final detailsJson = prefs.getString(_reportDetailsKey);
+      
+      if (detailsJson == null) {
+        developer.log('No cached report details found', name: 'CacheService');
+        return null;
+      }
+
+      // Check if cache is still valid - for report details, use longer expiry
+      final lastUpdate = prefs.getInt(_lastUpdateKey);
+      if (lastUpdate != null) {
+        final lastUpdateTime = DateTime.fromMillisecondsSinceEpoch(lastUpdate);
+        final now = DateTime.now();
+        final difference = now.difference(lastUpdateTime);
+        
+        // Report details cache expires after 7 days (much longer than regular cache)
+        if (difference.inDays >= 7) {
+          developer.log('Report details cache expired (${difference.inDays} days old)', name: 'CacheService');
+          return null;
+        }
+      }
+
+      final reportDetails = json.decode(detailsJson) as Map<String, dynamic>;
+      final reportJson = reportDetails[reportId.toString()];
+      
+      if (reportJson == null) {
+        developer.log('No cached detail found for report ID $reportId', name: 'CacheService');
+        return null;
+      }
+
+      final report = Report.fromJson(reportJson);
+      developer.log('Loaded cached report detail for ID $reportId', name: 'CacheService');
+      return report;
+    } catch (e) {
+      developer.log('Error loading report detail from cache: $e', name: 'CacheService');
+      return null;
+    }
+  }
+
   // Check if cache is still valid
   static bool isCacheValid(SharedPreferences prefs) {
     final lastUpdate = prefs.getInt(_lastUpdateKey);
@@ -145,6 +207,7 @@ class CacheService {
       await prefs.remove(_reportsKey);
       await prefs.remove(_userStatsKey);
       await prefs.remove(_globalStatsKey);
+      await prefs.remove(_reportDetailsKey);
       await prefs.remove(_lastUpdateKey);
       developer.log('All cache cleared', name: 'CacheService');
     } catch (e) {
@@ -160,6 +223,7 @@ class CacheService {
       final hasReports = prefs.getString(_reportsKey) != null;
       final hasUserStats = prefs.getString(_userStatsKey) != null;
       final hasGlobalStats = prefs.getString(_globalStatsKey) != null;
+      final hasReportDetails = prefs.getString(_reportDetailsKey) != null;
       
       return {
         'lastUpdate': lastUpdate != null 
@@ -169,6 +233,7 @@ class CacheService {
         'hasReports': hasReports,
         'hasUserStats': hasUserStats,
         'hasGlobalStats': hasGlobalStats,
+        'hasReportDetails': hasReportDetails,
       };
     } catch (e) {
       developer.log('Error getting cache info: $e', name: 'CacheService');

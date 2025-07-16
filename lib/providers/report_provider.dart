@@ -215,7 +215,10 @@ class ReportNotifier extends StateNotifier<ReportState> {
     }
     
     // Then try to load fresh data from API (this will happen in background)
-    loadAllReports();
+    loadAllReports().then((_) {
+      // After loading reports, preload details for offline access
+      preloadReportDetails();
+    });
     loadGlobalStats();
   }
 
@@ -256,6 +259,17 @@ class ReportNotifier extends StateNotifier<ReportState> {
         try {
           await CacheService.saveReports(newReports);
           developer.log('Saved ${newReports.length} reports to cache', name: 'ReportProvider');
+          
+          // Also cache each report detail for offline access
+          for (final report in newReports) {
+            try {
+              await CacheService.saveReportDetail(report.id, report);
+            } catch (detailCacheError) {
+              developer.log('Error caching report detail for ID ${report.id}: $detailCacheError', name: 'ReportProvider');
+            }
+          }
+          developer.log('Cached individual report details for offline access', name: 'ReportProvider');
+          
         } catch (cacheError) {
           developer.log('Error saving reports to cache: $cacheError', name: 'ReportProvider');
         }
@@ -351,22 +365,64 @@ class ReportNotifier extends StateNotifier<ReportState> {
   Future<void> loadReportById(int reportId) async {
     developer.log('Loading report detail for ID: $reportId', name: 'ReportProvider');
     
-    state = state.copyWith(isLoadingDetail: true);
+    state = state.copyWith(isLoadingDetail: true, errorMessage: null);
     
+    // First, always try to load from cache - even if online for faster loading
+    developer.log('Checking cache for report detail ID: $reportId', name: 'ReportProvider');
+    final cachedReport = await CacheService.loadReportDetail(reportId);
+    
+    if (cachedReport != null) {
+      developer.log('Found cached report detail for ID: $reportId', name: 'ReportProvider');
+      state = state.copyWith(
+        selectedReport: cachedReport,
+        isLoadingDetail: false,
+      );
+      
+      // If we have cached data, check if we should refresh from server
+      final connectivityService = _ref.read(connectivityServiceProvider);
+      final hasInternet = await connectivityService.checkInternetConnection();
+      
+      if (hasInternet) {
+        // Background refresh to update cache - don't block UI
+        _refreshReportDetailInBackground(reportId);
+      }
+      return;
+    }
+    
+    // No cached data - check connectivity
+    final connectivityService = _ref.read(connectivityServiceProvider);
+    final hasInternet = await connectivityService.checkInternetConnection();
+    
+    if (!hasInternet) {
+      developer.log('No internet and no cached data for report ID: $reportId', name: 'ReportProvider');
+      state = state.copyWith(
+        isLoadingDetail: false,
+        errorMessage: 'Detail laporan tidak tersedia offline. Data ini belum pernah dimuat sebelumnya.',
+      );
+      return;
+    }
+    
+    // Load from server
     try {
-      // Using the correct API method name that exists in the ApiService
+      developer.log('Loading report detail from server for ID: $reportId', name: 'ReportProvider');
       final result = await _apiService.getReportDetail(reportId);
       
       if (result['success']) {
+        final report = result['report'] as Report;
+        
+        // Save to cache for offline use
+        await CacheService.saveReportDetail(reportId, report);
+        developer.log('Cached report detail for ID: $reportId', name: 'ReportProvider');
+        
         state = state.copyWith(
-          selectedReport: result['report'],
+          selectedReport: report,
           isLoadingDetail: false,
         );
-        developer.log('Report detail loaded successfully for ID: $reportId', name: 'ReportProvider');
+        developer.log('Report detail loaded successfully from server for ID: $reportId', name: 'ReportProvider');
       } else {
         state = state.copyWith(
           isLoadingDetail: false,
-          errorMessage: result['message'],
+          errorMessage: result['message'] ?? 'Gagal memuat detail laporan',
         );
         developer.log('Failed to load report detail: ${result['message']}', name: 'ReportProvider');
       }
@@ -376,6 +432,29 @@ class ReportNotifier extends StateNotifier<ReportState> {
         errorMessage: 'Error loading report detail: ${e.toString()}',
       );
       developer.log('Error loading report detail: $e', name: 'ReportProvider');
+    }
+  }
+
+  // Background refresh of report detail (don't block UI)
+  Future<void> _refreshReportDetailInBackground(int reportId) async {
+    try {
+      developer.log('Background refresh for report detail ID: $reportId', name: 'ReportProvider');
+      final result = await _apiService.getReportDetail(reportId);
+      
+      if (result['success']) {
+        final report = result['report'] as Report;
+        
+        // Update cache with fresh data
+        await CacheService.saveReportDetail(reportId, report);
+        
+        // Update UI if this is still the selected report
+        if (state.selectedReport?.id == reportId) {
+          state = state.copyWith(selectedReport: report);
+          developer.log('Updated UI with fresh report detail for ID: $reportId', name: 'ReportProvider');
+        }
+      }
+    } catch (e) {
+      developer.log('Background refresh failed for report ID $reportId: $e', name: 'ReportProvider');
     }
   }
 
@@ -696,6 +775,61 @@ class ReportNotifier extends StateNotifier<ReportState> {
     } catch (e) {
       developer.log('Error setting cached global stats: $e', name: 'ReportProvider');
     }
+  }
+
+  // Preload and cache report details for offline access
+  Future<void> preloadReportDetails() async {
+    if (state.reports.isEmpty) return;
+    
+    developer.log('Preloading report details for offline access (${state.reports.length} reports)', name: 'ReportProvider');
+    
+    // Get connectivity to decide whether to fetch from API or skip
+    final connectivityService = _ref.read(connectivityServiceProvider);
+    final hasInternet = await connectivityService.checkInternetConnection();
+    
+    if (!hasInternet) {
+      developer.log('No internet - skipping report details preload', name: 'ReportProvider');
+      return;
+    }
+    
+    // Load details for ALL reports (not just first 20) to ensure complete offline access
+    final reportsToCache = state.reports.toList();
+    int cachedCount = 0;
+    int skippedCount = 0;
+    
+    for (final report in reportsToCache) {
+      try {
+        // Check if already cached and still valid
+        final cachedDetail = await CacheService.loadReportDetail(report.id);
+        if (cachedDetail != null) {
+          skippedCount++;
+          continue; // Skip if already cached
+        }
+        
+        // Load from API and cache
+        final result = await _apiService.getReportDetail(report.id);
+        if (result['success']) {
+          final detailReport = result['report'] as Report;
+          await CacheService.saveReportDetail(report.id, detailReport);
+          cachedCount++;
+          developer.log('Preloaded and cached detail for report ID ${report.id}', name: 'ReportProvider');
+        }
+        
+        // Small delay to avoid overwhelming the server
+        await Future.delayed(const Duration(milliseconds: 100));
+        
+      } catch (e) {
+        developer.log('Error preloading detail for report ID ${report.id}: $e', name: 'ReportProvider');
+      }
+    }
+    
+    developer.log('Completed preloading report details: $cachedCount new, $skippedCount already cached', name: 'ReportProvider');
+  }
+
+  // Clear selected report (useful when navigating away from detail screen)
+  void clearSelectedReport() {
+    state = state.copyWith(selectedReport: null, isLoadingDetail: false, errorMessage: null);
+    developer.log('Cleared selected report', name: 'ReportProvider');
   }
 }
 

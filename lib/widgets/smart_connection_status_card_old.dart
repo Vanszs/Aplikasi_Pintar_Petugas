@@ -83,7 +83,7 @@ class _SmartConnectionStatusCardState extends ConsumerState<SmartConnectionStatu
     final authState = ref.read(authProvider);
     final internetConnection = ref.read(internetConnectionProvider);
     
-    if (authState.isAuthenticated && !internetConnection) {
+    if (authState.isAuthenticated && internetConnection == false) {
       _showOfflineMode();
     }
   }
@@ -340,7 +340,7 @@ class _SmartConnectionStatusCardState extends ConsumerState<SmartConnectionStatu
         final internetConnection = ref.watch(internetConnectionProvider);
         final lastSync = ref.watch(lastSyncProvider);
         
-        final isOnline = internetConnection && authState.isAuthenticated;
+        final isOnline = (internetConnection == true) && authState.isAuthenticated;
         final currentRefreshState = isGlobalRefreshing || _isRefreshing;
         
         // Show offline status as a full-screen overlay dengan pesan khusus petugas

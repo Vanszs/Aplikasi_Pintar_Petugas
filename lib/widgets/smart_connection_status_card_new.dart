@@ -41,6 +41,7 @@ class _SmartConnectionStatusCardState extends ConsumerState<SmartConnectionStatu
         }
         
         // Show small offline indicator in corner when offline (main popup handled by GlobalOfflineWrapper)
+        // Check for both null and false to handle the nullable boolean
         if (internetConnection == false) {
           return _buildSmallOfflineIndicator(lastSync);
         }

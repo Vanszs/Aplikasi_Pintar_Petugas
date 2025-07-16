@@ -5,12 +5,15 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:lottie/lottie.dart';
+import 'dart:developer' as developer;
 
 import '../main.dart';
 import '../models/report.dart';
 import '../providers/auth_provider.dart';
 import '../providers/report_provider.dart';
 import '../providers/global_refresh_provider.dart';
+import '../services/global_offline_handler.dart';
+import '../services/cache_service.dart';
 import '../widgets/gradient_background.dart';
 import '../widgets/report_action_button.dart';
 import '../widgets/smart_connection_status_card.dart';
@@ -38,17 +41,27 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
       // First ensure socket is connected for real-time updates
       _ensureSocketConnection();
       
+      // Force check offline state untuk memastikan popup/capsule muncul jika offline
+      final globalOfflineHandler = ref.read(globalOfflineHandlerProvider);
+      await globalOfflineHandler.forceCheckOfflineState();
+      if (!mounted) return;
+      
       // Cek koneksi internet
       final connectivityService = ref.read(connectivityServiceProvider);
       await connectivityService.checkInternetConnection();
       if (!mounted) return;
+          // Load initial data
+    await Future.wait([
+      ref.read(reportProvider.notifier).loadUserReports(),
+      ref.read(reportProvider.notifier).loadUserStats(),
+      ref.read(reportProvider.notifier).loadGlobalStats(),
+    ]);
+    
+    // Preload report details for offline access (background task)
+    ref.read(reportProvider.notifier).preloadReportDetails();
       
-      // Load initial data
-      await Future.wait([
-        ref.read(reportProvider.notifier).loadUserReports(),
-        ref.read(reportProvider.notifier).loadUserStats(),
-        ref.read(reportProvider.notifier).loadGlobalStats(),
-      ]);
+      // After loading reports, pre-cache report details for offline access
+      _preCacheReportDetails();
       
       // Start a periodic connection check
       _connectionCheckTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
@@ -97,6 +110,49 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
     if (!mounted) return;
     final globalRefresh = ref.read(globalRefreshProvider);
     await globalRefresh();
+    
+    // Preload report details after refresh for offline access
+    if (mounted) {
+      ref.read(reportProvider.notifier).preloadReportDetails();
+    }
+  }
+
+  // Pre-cache report details for better offline experience
+  void _preCacheReportDetails() async {
+    try {
+      final reportState = ref.read(reportProvider);
+      final reports = reportState.reports;
+      
+      // Only pre-cache first 10 recent reports to avoid overwhelming the cache
+      final reportsToCache = reports.take(10).toList();
+      
+      developer.log('Pre-caching ${reportsToCache.length} report details for offline access', name: 'HomeScreen');
+      
+      // Cache reports in background without blocking UI
+      for (final report in reportsToCache) {
+        try {
+          // Cache report detail if ID is available
+          final cached = await CacheService.loadReportDetail(report.id);
+          if (cached == null) {
+            // Load detail to trigger caching
+            await ref.read(reportProvider.notifier).loadReportById(report.id);
+            
+            // Small delay to avoid overwhelming the API
+            await Future.delayed(const Duration(milliseconds: 200));
+          }
+        } catch (e) {
+          developer.log('Error pre-caching report ${report.id}: $e', name: 'HomeScreen');
+          // Continue with other reports even if one fails
+        }
+        
+        // Check if still mounted to avoid memory leaks
+        if (!mounted) break;
+      }
+      
+      developer.log('Pre-caching completed', name: 'HomeScreen');
+    } catch (e) {
+      developer.log('Error in pre-caching report details: $e', name: 'HomeScreen');
+    }
   }
 
   @override

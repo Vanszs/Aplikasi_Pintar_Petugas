@@ -5,6 +5,8 @@ import 'package:lottie/lottie.dart';
 import '../services/global_offline_handler.dart';
 import '../providers/auth_provider.dart';
 import '../providers/global_refresh_provider.dart';
+import '../main.dart';
+import 'dart:developer' as developer;
 
 class GlobalOfflineWrapper extends ConsumerStatefulWidget {
   final Widget child;
@@ -26,6 +28,7 @@ class _GlobalOfflineWrapperState extends ConsumerState<GlobalOfflineWrapper>
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
   bool _isRefreshing = false;
+  bool _showOfflineCapsule = false; // State untuk capsule offline
 
   @override
   void initState() {
@@ -62,6 +65,183 @@ class _GlobalOfflineWrapperState extends ConsumerState<GlobalOfflineWrapper>
       curve: Curves.easeOutCubic,
       reverseCurve: Curves.easeInCubic,
     ));
+
+    // Force check offline state on cold boot - dengan delay untuk memastikan provider sudah ready
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Immediate check tanpa delay untuk cold boot scenarios
+      _performColdBootCheck();
+      
+      // Check tambahan dengan delay untuk memastikan state sudah settle
+      Future.delayed(const Duration(milliseconds: 1500), () {
+        if (mounted) {
+          _performSecondaryOfflineCheck();
+        }
+      });
+      
+      // Check terakhir dengan delay paling lama sebagai safety net
+      Future.delayed(const Duration(milliseconds: 4000), () {
+        if (mounted) {
+          _performFinalOfflineCheck();
+        }
+      });
+    });
+  }
+
+  void _performColdBootCheck() async {
+    try {
+      final container = ProviderScope.containerOf(context);
+      final authState = container.read(authProvider);
+      
+      developer.log('Cold boot check - Auth: ${authState.isAuthenticated}', name: 'GlobalOfflineWrapper');
+      
+      // Jika belum authenticated, skip check
+      if (!authState.isAuthenticated) {
+        developer.log('User not authenticated, skipping offline check', name: 'GlobalOfflineWrapper');
+        return;
+      }
+
+      // Force connectivity check first dengan multiple attempts
+      final connectivityService = container.read(connectivityServiceProvider);
+      bool hasInternet = false;
+      
+      // Try connectivity check multiple times untuk memastikan akurat
+      for (int i = 0; i < 3; i++) {
+        hasInternet = await connectivityService.checkInternetConnection();
+        if (hasInternet) break;
+        
+        // Wait sebelum retry
+        if (i < 2) {
+          await Future.delayed(const Duration(milliseconds: 1000));
+        }
+      }
+      
+      // Update internet connection provider
+      container.read(internetConnectionProvider.notifier).state = hasInternet;
+      
+      developer.log('Cold boot connectivity check result after ${hasInternet ? 1 : 3} attempts: $hasInternet', name: 'GlobalOfflineWrapper');
+      
+      if (!hasInternet) {
+        // Show offline indication immediately
+        developer.log('Cold boot: No internet - showing offline indication', name: 'GlobalOfflineWrapper');
+        
+        // Get offline handler and force it to show offline state
+        final offlineHandler = container.read(globalOfflineHandlerProvider);
+        
+        // Force check offline state untuk memastikan handler dalam sync
+        await offlineHandler.forceCheckOfflineState();
+        
+        // Force show popup if user authenticated and offline
+        if (authState.isAuthenticated) {
+          offlineHandler.checkOfflineStateForAuthenticatedUser();
+          
+          // Double check: jika popup masih tidak muncul, force show capsule
+          await Future.delayed(const Duration(milliseconds: 500));
+          if (!offlineHandler.shouldShowOfflinePopup && !_showOfflineCapsule) {
+            if (mounted) {
+              setState(() {
+                _showOfflineCapsule = true;
+              });
+              developer.log('Cold boot: Forcing capsule show as fallback', name: 'GlobalOfflineWrapper');
+            }
+          }
+        }
+      }
+      
+    } catch (e) {
+      developer.log('Error in cold boot check: $e', name: 'GlobalOfflineWrapper');
+      
+      // On error, assume offline dan show indication
+      try {
+        final container = ProviderScope.containerOf(context);
+        final authState = container.read(authProvider);
+        
+        if (authState.isAuthenticated && mounted) {
+          setState(() {
+            _showOfflineCapsule = true;
+          });
+          developer.log('Cold boot error: Showing offline capsule as safeguard', name: 'GlobalOfflineWrapper');
+        }
+      } catch (fallbackError) {
+        developer.log('Cold boot fallback error: $fallbackError', name: 'GlobalOfflineWrapper');
+      }
+    }
+  }
+
+  void _performSecondaryOfflineCheck() async {
+    try {
+      final container = ProviderScope.containerOf(context);
+      final authState = container.read(authProvider);
+      final internetConnection = container.read(internetConnectionProvider);
+      
+      // Jika user authenticated dan belum ada check internet, force check
+      if (authState.isAuthenticated && internetConnection == null) {
+        developer.log('Secondary check: Internet connection still unchecked - performing check', name: 'GlobalOfflineWrapper');
+        
+        final connectivityService = container.read(connectivityServiceProvider);
+        final hasInternet = await connectivityService.checkInternetConnection();
+        container.read(internetConnectionProvider.notifier).state = hasInternet;
+        
+        if (!hasInternet && !_showOfflineCapsule) {
+          developer.log('Secondary check: No internet detected - showing offline indication', name: 'GlobalOfflineWrapper');
+          if (mounted) {
+            setState(() {
+              _showOfflineCapsule = true;
+            });
+          }
+        }
+      }
+      
+      // Jika user authenticated tapi offline dan belum ada indikasi, force show
+      if (authState.isAuthenticated && internetConnection == false && !_showOfflineCapsule) {
+        developer.log('Secondary check: Offline but no indication shown - forcing capsule', name: 'GlobalOfflineWrapper');
+        if (mounted) {
+          setState(() {
+            _showOfflineCapsule = true;
+          });
+        }
+      }
+      
+    } catch (e) {
+      developer.log('Error in secondary offline check: $e', name: 'GlobalOfflineWrapper');
+    }
+  }
+
+  void _performFinalOfflineCheck() async {
+    try {
+      final container = ProviderScope.containerOf(context);
+      final authState = container.read(authProvider);
+      final internetConnection = container.read(internetConnectionProvider);
+      
+      // Final safety check - jika semua check sebelumnya gagal
+      if (authState.isAuthenticated && internetConnection == null) {
+        developer.log('Final check: Internet connection still null - performing final connectivity check', name: 'GlobalOfflineWrapper');
+        
+        final connectivityService = container.read(connectivityServiceProvider);
+        final hasInternet = await connectivityService.checkInternetConnection();
+        container.read(internetConnectionProvider.notifier).state = hasInternet;
+        
+        if (!hasInternet && !_showOfflineCapsule) {
+          developer.log('Final check: No internet detected - showing offline indication as last resort', name: 'GlobalOfflineWrapper');
+          if (mounted) {
+            setState(() {
+              _showOfflineCapsule = true;
+            });
+          }
+        }
+      }
+      
+      // Force show capsule jika offline dan belum ada indication
+      if (authState.isAuthenticated && internetConnection == false && !_showOfflineCapsule) {
+        developer.log('Final check: Still offline without indication - forcing capsule show', name: 'GlobalOfflineWrapper');
+        if (mounted) {
+          setState(() {
+            _showOfflineCapsule = true;
+          });
+        }
+      }
+    } catch (e) {
+      developer.log('Error in final offline check: $e', name: 'GlobalOfflineWrapper');
+    }
   }
 
   @override
@@ -78,14 +258,53 @@ class _GlobalOfflineWrapperState extends ConsumerState<GlobalOfflineWrapper>
         final offlineHandler = ref.watch(globalOfflineHandlerProvider);
         final authState = ref.watch(authProvider);
         final isGlobalRefreshing = ref.watch(globalRefreshStateProvider);
+        final isOfflineToOnlineSync = ref.watch(offlineToOnlineSyncProvider);
         final lastSync = ref.watch(lastSyncProvider);
         
-        // Only show offline popup if user is authenticated and handler says we should show it
+        // Show refresh indicator only for offline-to-online sync or manual refresh
+        final shouldShowRefreshing = isGlobalRefreshing || isOfflineToOnlineSync || _isRefreshing;
+        
+        // Show offline popup if user is authenticated and handler says we should show it (and capsule is not active)
         final shouldShowPopup = authState.isAuthenticated && 
                               offlineHandler.isInitialized && 
-                              offlineHandler.shouldShowOfflinePopup;
+                              offlineHandler.shouldShowOfflinePopup &&
+                              !_showOfflineCapsule;
         
-        // Handle animation based on shouldShowPopup - use immediate post frame callback
+        // Show capsule if offline but popup was dismissed by user (after "Coba Lagi" click)
+        // OR if we're offline and initialized but no popup is showing
+        final shouldShowCapsule = authState.isAuthenticated && 
+                                offlineHandler.isInitialized && 
+                                !offlineHandler.hasInternetConnection &&
+                                (_showOfflineCapsule || (!offlineHandler.shouldShowOfflinePopup && !shouldShowPopup));
+        
+        // Auto reset capsule state when internet is restored
+        if (offlineHandler.hasInternetConnection && _showOfflineCapsule) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              setState(() {
+                _showOfflineCapsule = false;
+              });
+            }
+          });
+        }
+        
+        // Auto show capsule if offline and no popup is showing (fallback logic)
+        if (authState.isAuthenticated && 
+            offlineHandler.isInitialized && 
+            !offlineHandler.hasInternetConnection &&
+            !offlineHandler.shouldShowOfflinePopup &&
+            !_showOfflineCapsule) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              setState(() {
+                _showOfflineCapsule = true;
+              });
+              developer.log('Auto-showing capsule: offline but no popup', name: 'GlobalOfflineWrapper');
+            }
+          });
+        }
+        
+        // Handle animation based on shouldShowPopup
         if (shouldShowPopup) {
           if (!_fadeController.isCompleted && !_fadeController.isAnimating) {
             WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -108,8 +327,11 @@ class _GlobalOfflineWrapperState extends ConsumerState<GlobalOfflineWrapper>
         
         return Stack(
           children: [
-            // Main app content
-            widget.child,
+            // Main app content - always allow interaction unless popup is blocking
+            IgnorePointer(
+              ignoring: shouldShowPopup, // Only block interaction when popup is shown
+              child: widget.child,
+            ),
             
             // Offline popup overlay with DefaultTextStyle
             if (shouldShowPopup || _fadeController.isAnimating || _fadeController.value > 0)
@@ -119,8 +341,12 @@ class _GlobalOfflineWrapperState extends ConsumerState<GlobalOfflineWrapper>
                   color: Colors.black87,
                   fontFamily: 'Inter',
                 ),
-                child: _buildOfflinePopupOverlay(lastSync, isGlobalRefreshing || _isRefreshing),
+                child: _buildOfflinePopupOverlay(lastSync, shouldShowRefreshing),
               ),
+            
+            // Offline capsule di pojok kanan atas - doesn't block interaction
+            if (shouldShowCapsule)
+              _buildOfflineCapsule(lastSync),
           ],
         );
       },
@@ -289,7 +515,11 @@ class _GlobalOfflineWrapperState extends ConsumerState<GlobalOfflineWrapper>
       final success = await offlineHandler.refreshConnection();
       
       if (success) {
-        // Connection restored successfully
+        // Connection restored successfully - hide both popup and capsule
+        setState(() {
+          _showOfflineCapsule = false;
+        });
+        
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -303,29 +533,45 @@ class _GlobalOfflineWrapperState extends ConsumerState<GlobalOfflineWrapper>
           );
         }
       } else {
-        // Still no internet
+        // Still no internet - hide popup and show capsule (dismiss popup, allow offline mode)
+        setState(() {
+          _showOfflineCapsule = true;
+        });
+        
+        // Also tell the offline handler to dismiss the popup
+        offlineHandler.dismissOfflinePopup();
+        
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                'Koneksi internet masih tidak tersedia. Coba lagi nanti.',
+                'Koneksi internet masih tidak tersedia. Mode offline aktif.',
                 style: GoogleFonts.inter(color: Colors.white),
               ),
-              backgroundColor: Colors.red.shade600,
+              backgroundColor: Colors.orange.shade600,
               duration: const Duration(seconds: 3),
             ),
           );
         }
       }
     } catch (e) {
+      // Error occurred - hide popup and show capsule (allow offline mode)
+      setState(() {
+        _showOfflineCapsule = true;
+      });
+      
+      // Also tell the offline handler to dismiss the popup
+      final offlineHandler = ref.read(globalOfflineHandlerProvider);
+      offlineHandler.dismissOfflinePopup();
+      
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'Terjadi kesalahan: $e',
+              'Koneksi internet masih tidak tersedia. Mode offline aktif.',
               style: GoogleFonts.inter(color: Colors.white),
             ),
-            backgroundColor: Colors.red.shade600,
+            backgroundColor: Colors.orange.shade600,
             duration: const Duration(seconds: 3),
           ),
         );
@@ -337,6 +583,47 @@ class _GlobalOfflineWrapperState extends ConsumerState<GlobalOfflineWrapper>
         });
       }
     }
+  }
+
+  Widget _buildOfflineCapsule(DateTime? lastSync) {
+    return Positioned(
+      top: MediaQuery.of(context).padding.top + 10,
+      right: 20,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.red.shade500.withValues(alpha: 0.95),
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.15),
+              blurRadius: 8,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.wifi_off_rounded,
+              size: 16,
+              color: Colors.white,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              'Offline',
+              style: GoogleFonts.inter(
+                fontSize: 13,
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.2,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   String _getOfflineMessageForPetugas(DateTime? lastSync) {

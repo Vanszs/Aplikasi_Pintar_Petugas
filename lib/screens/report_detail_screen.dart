@@ -742,4 +742,11 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
       }
     });
   }
+
+  @override
+  void dispose() {
+    // Clear selected report when navigating away to free memory and ensure fresh loading next time
+    ref.read(reportProvider.notifier).clearSelectedReport();
+    super.dispose();
+  }
 }
