@@ -2,7 +2,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:developer' as developer;
 import '../models/report.dart';
 import '../main.dart';
-import '../services/notification_service_fixed.dart';
 import 'auth_provider.dart';
 
 class ReportState {
@@ -52,12 +51,10 @@ class ReportState {
 class ReportNotifier extends StateNotifier<ReportState> {
   final dynamic _apiService;
   final dynamic _socketService;
-  late final NotificationService _notificationService;
   final Ref _ref;
 
   ReportNotifier(this._apiService, this._socketService, this._ref) 
       : super(ReportState()) {
-    _notificationService = _ref.read(notificationServiceProvider);
     _setupSocketListeners();
     _listenForAppResume();
     _loadInitialData();
@@ -95,8 +92,8 @@ class ReportNotifier extends StateNotifier<ReportState> {
             // Update the report in state
             _updateReportStatus(reportId, status, data['report']);
             
-            // Show notification for status update only if authenticated
-            _notificationService.showStatusUpdateNotification(reportId, status);
+            // Status update processed (notifications handled by FCM)
+            developer.log('Report status updated: $reportId -> $status', name: 'ReportProvider');
           }
         } catch (e) {
           developer.log('Error handling report status update: $e', name: 'ReportProvider');
@@ -127,8 +124,8 @@ class ReportNotifier extends StateNotifier<ReportState> {
       // Add report to state
       _addNewReportToState(report);
       
-      // Show notification only if user is authenticated
-      _notificationService.showNewReportNotification(report);
+      // New report processed (notifications handled by FCM)
+      developer.log('New report added to state: ${report.id}', name: 'ReportProvider');
     } catch (e) {
       developer.log('Error handling new report: $e', name: 'ReportProvider');
     }

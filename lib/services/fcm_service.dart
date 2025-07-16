@@ -5,8 +5,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'notification_service_fixed.dart';
-import '../models/report.dart';
 
 // Top-level background message handler
 @pragma('vm:entry-point')
@@ -34,7 +32,6 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
 class FCMService extends ChangeNotifier {
   static final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
-  final NotificationService _notificationService = NotificationService();
   bool _isInitialized = false;
   String? _fcmToken;
   Function(String)? _onTokenRefresh;
@@ -114,26 +111,15 @@ class FCMService extends ChangeNotifier {
     try {
       developer.log('=== INITIALIZING FCM SERVICE ===', name: 'FCMService');
       
-      // Initialize notification service first
-      developer.log('Initializing notification service...', name: 'FCMService');
-      // The notification service initializes automatically via constructor
-      
-      // Request permission for notifications with critical alerts
-      developer.log('Requesting FCM permissions with high priority...', name: 'FCMService');
+      // Request permission for notifications
+      developer.log('Requesting FCM permissions...', name: 'FCMService');
       NotificationSettings settings = await _firebaseMessaging.requestPermission(
         alert: true,
-        announcement: true, // Allow announcements
         badge: true,
-        carPlay: true,  // Allow notifications in car play
-        criticalAlert: true, // Request critical alert permission
-        provisional: false,
         sound: true,
       );
 
       developer.log('FCM Permission Status: ${settings.authorizationStatus}', name: 'FCMService');
-      developer.log('FCM Alert Setting: ${settings.alert}', name: 'FCMService');
-      developer.log('FCM Sound Setting: ${settings.sound}', name: 'FCMService');
-      developer.log('FCM Badge Setting: ${settings.badge}', name: 'FCMService');
 
       if (settings.authorizationStatus == AuthorizationStatus.authorized) {
         developer.log('FCM: User granted permission', name: 'FCMService');
@@ -141,7 +127,6 @@ class FCMService extends ChangeNotifier {
         developer.log('FCM: User granted provisional permission', name: 'FCMService');
       } else {
         developer.log('FCM: User declined or has not accepted permission', name: 'FCMService');
-        // Still continue to get token in case permissions change later
       }
 
       // Set FCM presentation options for foreground notifications
@@ -151,7 +136,6 @@ class FCMService extends ChangeNotifier {
         sound: true,
       );
       developer.log('FCM foreground presentation options set', name: 'FCMService');
-
 
       // Get the token
       _fcmToken = await _firebaseMessaging.getToken();
@@ -206,7 +190,7 @@ class FCMService extends ChangeNotifier {
     await prefs.setString('fcm_token', token);
   }
 
-  // Handle FCM foreground messages - Ensure notifications show when app is open
+  // Handle FCM foreground messages - Use default system notifications
   void _handleForegroundMessage(RemoteMessage message) async {
     developer.log('🔔🔔🔔 === FCM FOREGROUND MESSAGE RECEIVED === 🔔🔔🔔', name: 'FCMService');
     developer.log('Message ID: ${message.messageId}', name: 'FCMService');
@@ -248,8 +232,8 @@ class FCMService extends ChangeNotifier {
       developer.log('No notification payload in message', name: 'FCMService');
     }
     
-    // Show custom notification with custom sound (foreground only)
-    await _showCustomNotificationForForegroundMessage(message);
+    // Default system notification will be shown automatically by Firebase
+    developer.log('Using default system notification', name: 'FCMService');
     
     // Process additional actions (like updating app state, triggering UI updates, etc.)
     _processMessageData(message);
@@ -299,77 +283,14 @@ class FCMService extends ChangeNotifier {
         await prefs.setStringList('recent_background_messages', recentMessages);
       }
 
-      // Handle notifications - ensure it's shown to the user
-      // Create a notification service instance to show the notification
-      final notificationService = NotificationService();
-      await notificationService.showNotificationFromMessage(
-        message, 
-        isHighPriority: message.data['type'] == 'new_report',
-      );
-      
-      developer.log('Background notification displayed for message: ${message.messageId}', 
+      // Default Firebase notification will be shown automatically
+      developer.log('Using default background notification for message: ${message.messageId}', 
           name: 'FCMService');
     } catch (e, stackTrace) {
       developer.log('Error handling background message: $e', name: 'FCMService');
       developer.log('Stack trace: $stackTrace', name: 'FCMService');
     }
   }
-
-  // Show custom notification for foreground messages with custom sound
-  Future<void> _showCustomNotificationForForegroundMessage(RemoteMessage message) async {
-    try {
-      final data = message.data;
-      
-      // Always show custom notification for ALL FCM messages when app is in foreground
-      if (data['type'] == 'new_report') {
-        // Create a Report object from the message data
-        final report = Report(
-          id: int.tryParse(data['reportId'] ?? '0') ?? 0,
-          userId: int.tryParse(data['userId'] ?? '0') ?? 0,
-          address: data['address'] ?? '',
-          phone: data['userPhone'] ?? '',
-          userName: data['userName'] ?? 'Unknown',
-          jenisLaporan: data['jenisLaporan'] ?? 'Laporan',
-          status: data['status'] ?? 'pending',
-          createdAt: DateTime.now(),
-        );
-        
-        // Show custom notification with sound
-        await _notificationService.showNewReportNotification(report);
-        developer.log('Custom notification shown for new report', name: 'FCMService');
-      } else {
-        // For ALL other types (including ones without type), show fallback notification
-        developer.log('Showing fallback notification for message type: ${data['type'] ?? 'unknown'}', name: 'FCMService');
-        await _showFallbackNotification(message);
-      }
-    } catch (e) {
-      developer.log('Error showing custom notification: $e', name: 'FCMService');
-      
-      // Always fallback to simple notification if anything fails
-      try {
-        await _showFallbackNotification(message);
-      } catch (fallbackError) {
-        developer.log('Error showing fallback notification: $fallbackError', name: 'FCMService');
-      }
-    }
-  }
-
-  // Fallback notification method
-  Future<void> _showFallbackNotification(RemoteMessage message) async {
-    try {
-      final title = message.notification?.title ?? 'Notifikasi';
-      final body = message.notification?.body ?? 'Ada pesan baru';
-      
-      await _notificationService.showSimpleNotification(
-        title: title,
-        body: body,
-        payload: message.data.toString(),
-      );
-    } catch (e) {
-      developer.log('Error in fallback notification: $e', name: 'FCMService');
-    }
-  }
-
 
   // Process message data for app state updates
   void _processMessageData(RemoteMessage message) {
@@ -471,54 +392,6 @@ class FCMService extends ChangeNotifier {
   void _generateNewSession() {
     _currentSessionId = 'session_${DateTime.now().millisecondsSinceEpoch}_${DateTime.now().microsecond}';
     developer.log('Generated new FCM session: $_currentSessionId', name: 'FCMService');
-  }
-
-  // Test method to send a sample notification
-  Future<void> testNotification() async {
-    try {
-      await _notificationService.showSimpleNotification(
-        title: 'Test FCM Notification',
-        body: 'Ini adalah test notifikasi untuk memastikan sistem berfungsi',
-        payload: 'test_notification',
-      );
-      developer.log('Test notification sent successfully', name: 'FCMService');
-    } catch (e) {
-      developer.log('Error sending test notification: $e', name: 'FCMService');
-    }
-  }
-
-  // Force show test notification for debugging
-  Future<void> forceTestNotification() async {
-    try {
-      developer.log('=== FORCING TEST NOTIFICATION ===', name: 'FCMService');
-      
-      // Test 1: Simple notification
-      await _notificationService.showSimpleNotification(
-        title: 'Test Simple Notification',
-        body: 'Ini adalah test notifikasi sederhana',
-        payload: 'test_simple',
-      );
-      developer.log('Simple test notification sent', name: 'FCMService');
-      
-      // Test 2: New report notification
-      final testReport = Report(
-        id: 999,
-        userId: 1,
-        address: 'Test Address',
-        phone: '081234567890',
-        userName: 'Test User',
-        jenisLaporan: 'Test Laporan',
-        status: 'pending',
-        createdAt: DateTime.now(),
-      );
-      
-      await _notificationService.showNewReportNotification(testReport);
-      developer.log('New report test notification sent', name: 'FCMService');
-      
-      developer.log('=== TEST NOTIFICATIONS COMPLETED ===', name: 'FCMService');
-    } catch (e) {
-      developer.log('Error in force test notification: $e', name: 'FCMService');
-    }
   }
 }
 

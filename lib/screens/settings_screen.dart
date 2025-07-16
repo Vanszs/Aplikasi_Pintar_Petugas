@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../widgets/gradient_background.dart';
 
@@ -12,22 +10,6 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  String? _notificationSound;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadNotificationSound();
-  }
-
-  Future<void> _loadNotificationSound() async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _notificationSound = prefs.getString('notification_sound');
-    });
-  }
-
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -86,13 +68,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           style: GoogleFonts.inter(),
                         ),
                         subtitle: Text(
-                          _notificationSound ?? 'Default',
-                          style: GoogleFonts.inter(color: Colors.grey),
+                          'Fitur dalam pengembangan',
+                          style: GoogleFonts.inter(
+                            color: Colors.orange,
+                            fontStyle: FontStyle.italic,
+                          ),
                         ),
                         onTap: () {
-                          GoRouter.of(context).push('/notification-settings');
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Fitur dalam pengembangan',
+                                style: GoogleFonts.inter(),
+                              ),
+                              backgroundColor: Colors.orange,
+                              behavior: SnackBarBehavior.floating,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                          );
                         },
-                        trailing: const Icon(Icons.arrow_forward_ios),
+                        trailing: const Icon(
+                          Icons.construction,
+                          color: Colors.orange,
+                        ),
                       ),
                     ),
                   ],
