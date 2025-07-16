@@ -35,45 +35,34 @@ class _GuideScreenState extends ConsumerState<GuideScreen> with TickerProviderSt
 
   @override
   Widget build(BuildContext context) {
-    final bottomSafePadding = MediaQuery.of(context).padding.bottom;
-    final topSafePadding = MediaQuery.of(context).padding.top;
-    
     return Scaffold(
-      body: GradientBackground(
-        colors: const [
-          Color(0xFFEFF6FF),  // Light blue
-          Color(0xFFEDE9FE),  // Light purple
-          Color(0xFFFDF2F8),  // Light pink
-          Color(0xFFF0F9FF),  // Lightest blue
-        ],
-        child: Column(
-          children: [
-            // Solid top safe area
-            Container(
-              height: topSafePadding,
-              color: const Color(0xFFF8FAFC),
-            ),
-            // App bar and tab bar
-            _buildAppBar(context),
-            _buildTabBar(),
-            // Content
-            Expanded(
-              child: TabBarView(
-                controller: _tabController,
-                physics: const BouncingScrollPhysics(),
-                children: [
-                  _buildIntroductionTab(0),
-                  _buildFeaturesTab(0),
-                  _buildReportingGuideTab(0),
-                ],
-              ),
-            ),
-            // Solid bottom safe area
-            Container(
-              height: bottomSafePadding,
-              color: const Color(0xFF9AA6B2),
-            ),
+      body: SafeArea(
+        child: GradientBackground(
+          colors: const [
+            Color(0xFFEFF6FF),  // Light blue
+            Color(0xFFEDE9FE),  // Light purple
+            Color(0xFFFDF2F8),  // Light pink
+            Color(0xFFF0F9FF),  // Lightest blue
           ],
+          child: Column(
+            children: [
+              // App bar and tab bar
+              _buildAppBar(context),
+              _buildTabBar(),
+              // Content
+              Expanded(
+                child: TabBarView(
+                  controller: _tabController,
+                  physics: const BouncingScrollPhysics(),
+                  children: [
+                    _buildIntroductionTab(0),
+                    _buildFeaturesTab(0),
+                    _buildReportingGuideTab(0),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

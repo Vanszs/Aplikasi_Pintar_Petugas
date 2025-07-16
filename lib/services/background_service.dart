@@ -285,7 +285,8 @@ class BackgroundService {
       category: AndroidNotificationCategory.alarm,
       enableVibration: false, // Disable vibration as requested
       playSound: true,
-      icon: '@mipmap/launcher_icon', // Use app icon instead of default
+      icon: '@mipmap/logo', // Use PNG logo directly for notifications
+      largeIcon: const DrawableResourceAndroidBitmap('@mipmap/logo'), // Use PNG logo for large icon too
       autoCancel: true, // Allow user to dismiss
     );
     

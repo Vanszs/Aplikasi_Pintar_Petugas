@@ -104,15 +104,15 @@
             </intent-filter>
         </receiver>
 
-        <!-- Firebase Default Icon -->
+        <!-- Firebase Default Icon (use PNG logo directly) -->
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_icon"
-            android:resource="@drawable/ic_notification" />
+            android:resource="@mipmap/logo" />
 
-        <!-- Firebase Large Icon -->
+        <!-- Firebase Large Icon (use PNG logo directly) -->
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_large_icon"
-            android:resource="@drawable/ic_notification_large" />
+            android:resource="@mipmap/logo" />
 
         <!-- Firebase Default Channel ID -->
         <meta-data

@@ -13,7 +13,6 @@ import '../providers/report_provider.dart';
 import '../providers/global_refresh_provider.dart';
 import '../widgets/gradient_background.dart';
 import '../widgets/report_action_button.dart';
-import '../widgets/smart_connection_status_card.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -104,67 +103,48 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
     final user = ref.watch(authProvider).user;
     final reportState = ref.watch(reportProvider);
     final reports = reportState.reports;
-    final bottomSafePadding = MediaQuery.of(context).padding.bottom;
     
 
     return Scaffold(
-      body: Stack(
-        children: [
-          GradientBackground(
-            colors: const [
-              Color(0xFFEFF6FF),  // Light blue
-              Color(0xFFEDE9FE),  // Light purple
-              Color(0xFFFDF2F8),  // Light pink
-              Color(0xFFF0F9FF),  // Lightest blue
-            ],
-            child: Column(
-              children: [
-                // Top safe area with solid background
-                Container(
-                  height: MediaQuery.of(context).padding.top,
-                  color: const Color(0xFFEFF6FF), // Match the top color of gradient
-                ),
-                // Content area
-                Expanded(
-                  child: RefreshIndicator(
-                    onRefresh: _refreshAllData,
-                    child: CustomScrollView(
-                      physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
-                      slivers: [
-                        _buildAppBar(user),
-                        SliverToBoxAdapter(
-                          child: Padding(
-                            padding: const EdgeInsets.all(20.0),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                _buildReportButton(),
-                                const SizedBox(height: 24),
-                                _buildStatsSection(reportState),
-                                const SizedBox(height: 24),
-                                _buildQuickActions(),
-                                const SizedBox(height: 24),
-                                _buildActivityFeed(reports),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                // Bottom safe area with solid background
-                Container(
-                  height: bottomSafePadding,
-                  color: const Color(0xFFF0F9FF), // Match the bottom color of gradient
-                ),
+      body: SafeArea(
+        child: Stack(
+          children: [
+            GradientBackground(
+              colors: const [
+                Color(0xFFEFF6FF),  // Light blue
+                Color(0xFFEDE9FE),  // Light purple
+                Color(0xFFFDF2F8),  // Light pink
+                Color(0xFFF0F9FF),  // Lightest blue
               ],
+              child: RefreshIndicator(
+                onRefresh: _refreshAllData,
+                child: CustomScrollView(
+                  physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+                  slivers: [
+                    _buildAppBar(user),
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.all(20.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildReportButton(),
+                            const SizedBox(height: 24),
+                            _buildStatsSection(reportState),
+                            const SizedBox(height: 24),
+                            _buildQuickActions(),
+                            const SizedBox(height: 24),
+                            _buildActivityFeed(reports),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
-          ),
-          
-          // Connection status overlay - HARUS di paling atas
-          const SmartConnectionStatusCard(),
-        ],
+          ],
+        ),
       ),
     );
   }
