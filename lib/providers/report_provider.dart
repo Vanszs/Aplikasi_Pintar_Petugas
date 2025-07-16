@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:developer' as developer;
 import '../models/report.dart';
 import '../main.dart';
+import '../services/cache_service.dart';
 import 'auth_provider.dart';
 
 class ReportState {
@@ -188,11 +189,33 @@ class ReportNotifier extends StateNotifier<ReportState> {
   }
 
   Future<void> _loadInitialData() async {
-    // Immediately load reports on startup - don't wait for user action
-    developer.log('Loading initial data automatically', name: 'ReportProvider');
-    loadAllReports();
+    // Immediately load cached data first for fast startup
+    developer.log('Loading initial data - trying cache first', name: 'ReportProvider');
     
-    // Also load global stats if needed
+    try {
+      // Load cached data immediately for better UX
+      final cachedReports = await CacheService.loadReports();
+      final cachedUserStats = await CacheService.loadUserStats();
+      final cachedGlobalStats = await CacheService.loadGlobalStats();
+      
+      if (cachedReports.isNotEmpty || cachedUserStats != null || cachedGlobalStats != null) {
+        developer.log('Found cached data, loading immediately', name: 'ReportProvider');
+        
+        state = state.copyWith(
+          reports: cachedReports,
+          userStats: cachedUserStats,
+          globalStats: cachedGlobalStats,
+          lastUpdated: DateTime.now(),
+        );
+        
+        developer.log('Loaded cached data: ${cachedReports.length} reports, userStats: ${cachedUserStats != null}, globalStats: ${cachedGlobalStats != null}', name: 'ReportProvider');
+      }
+    } catch (e) {
+      developer.log('Error loading cached data: $e', name: 'ReportProvider');
+    }
+    
+    // Then try to load fresh data from API (this will happen in background)
+    loadAllReports();
     loadGlobalStats();
   }
 
@@ -228,6 +251,14 @@ class ReportNotifier extends StateNotifier<ReportState> {
           errorMessage: null,
           lastUpdated: DateTime.now(),
         );
+        
+        // Save to cache for offline use
+        try {
+          await CacheService.saveReports(newReports);
+          developer.log('Saved ${newReports.length} reports to cache', name: 'ReportProvider');
+        } catch (cacheError) {
+          developer.log('Error saving reports to cache: $cacheError', name: 'ReportProvider');
+        }
         
         if (hasNewData) {
           developer.log('New or updated report data detected and loaded', name: 'ReportProvider');
@@ -269,6 +300,15 @@ class ReportNotifier extends StateNotifier<ReportState> {
         state = state.copyWith(
           globalStats: result['data'],
         );
+        
+        // Save to cache for offline use
+        try {
+          await CacheService.saveGlobalStats(result['data']);
+          developer.log('Saved global stats to cache', name: 'ReportProvider');
+        } catch (cacheError) {
+          developer.log('Error saving global stats to cache: $cacheError', name: 'ReportProvider');
+        }
+        
         developer.log('Global stats loaded successfully', name: 'ReportProvider');
       } else {
         developer.log('Failed to load global stats: ${result['message']}', name: 'ReportProvider');
@@ -289,6 +329,15 @@ class ReportNotifier extends StateNotifier<ReportState> {
         state = state.copyWith(
           userStats: result['data'],
         );
+        
+        // Save to cache for offline use
+        try {
+          await CacheService.saveUserStats(result['data']);
+          developer.log('Saved user stats to cache', name: 'ReportProvider');
+        } catch (cacheError) {
+          developer.log('Error saving user stats to cache: $cacheError', name: 'ReportProvider');
+        }
+        
         developer.log('User stats loaded successfully', name: 'ReportProvider');
       } else {
         developer.log('Failed to load user stats: ${result['message']}', name: 'ReportProvider');
@@ -607,6 +656,45 @@ class ReportNotifier extends StateNotifier<ReportState> {
         isLoading: false,
         errorMessage: 'Gagal memuat statistik: $e',
       );
+    }
+  }
+
+  // Cache methods for offline functionality
+  Future<void> setCachedReports(List<Report> cachedReports) async {
+    try {
+      state = state.copyWith(
+        reports: cachedReports,
+        isLoading: false,
+        errorMessage: null,
+        lastUpdated: DateTime.now(),
+      );
+      developer.log('Set ${cachedReports.length} cached reports', name: 'ReportProvider');
+    } catch (e) {
+      developer.log('Error setting cached reports: $e', name: 'ReportProvider');
+    }
+  }
+
+  Future<void> setCachedUserStats(Map<String, dynamic> cachedStats) async {
+    try {
+      state = state.copyWith(
+        userStats: cachedStats,
+        lastUpdated: DateTime.now(),
+      );
+      developer.log('Set cached user stats', name: 'ReportProvider');
+    } catch (e) {
+      developer.log('Error setting cached user stats: $e', name: 'ReportProvider');
+    }
+  }
+
+  Future<void> setCachedGlobalStats(Map<String, dynamic> cachedStats) async {
+    try {
+      state = state.copyWith(
+        globalStats: cachedStats,
+        lastUpdated: DateTime.now(),
+      );
+      developer.log('Set cached global stats', name: 'ReportProvider');
+    } catch (e) {
+      developer.log('Error setting cached global stats: $e', name: 'ReportProvider');
     }
   }
 }

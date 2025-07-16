@@ -21,6 +21,8 @@ import 'providers/report_provider.dart';
 // import 'services/wake_lock_service.dart'; // REMOVED: WakeLock causes conflicts
 import 'services/fcm_service.dart';
 import 'widgets/notification_permission_handler.dart';
+import 'services/global_offline_handler.dart';
+import 'widgets/global_offline_wrapper.dart';
 
 // Provider untuk menentukan mode dummy berdasarkan credential
 final isDummyModeProvider = StateProvider<bool>((ref) => false);
@@ -165,7 +167,19 @@ class _MyAppState extends ConsumerState<MyApp> {
     // Initialize FCM service after the app is built
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initializeFCM();
+      _initializeOfflineHandler();
     });
+  }
+
+  Future<void> _initializeOfflineHandler() async {
+    try {
+      // Force check offline state for authenticated users when app starts
+      final offlineHandler = ref.read(globalOfflineHandlerProvider);
+      await offlineHandler.forceCheckOfflineState();
+      developer.log('Offline handler force check completed', name: 'MyApp');
+    } catch (e) {
+      developer.log('Error initializing offline handler: $e', name: 'MyApp');
+    }
   }
 
   Future<void> _initializeFCM() async {
@@ -227,6 +241,11 @@ class _MyAppState extends ConsumerState<MyApp> {
         routerDelegate: router.routerDelegate,
         routeInformationParser: router.routeInformationParser,
         routeInformationProvider: router.routeInformationProvider,
+        
+        // Add builder to wrap the app content with GlobalOfflineWrapper
+        builder: (context, child) {
+          return GlobalOfflineWrapper(child: child ?? const SizedBox.shrink());
+        },
       
       // Add localization support
       localizationsDelegates: const [
