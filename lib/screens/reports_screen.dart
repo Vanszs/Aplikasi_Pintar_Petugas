@@ -9,6 +9,7 @@ import '../providers/report_provider.dart';
 import '../providers/global_refresh_provider.dart';
 import '../widgets/gradient_background.dart';
 import '../widgets/report_card.dart';
+import '../widgets/smart_connection_status_card.dart';
 
 class ReportsScreen extends ConsumerStatefulWidget {
   const ReportsScreen({super.key});
@@ -82,43 +83,49 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     final topSafePadding = MediaQuery.of(context).padding.top;
 
     return Scaffold(
-      body: GradientBackground(
-        // Match profile screen colors
-        colors: const [
-          Color(0xFFEFF6FF),  // Light blue
-          Color(0xFFEDE9FE),  // Light purple
-          Color(0xFFFDF2F8),  // Light pink
-          Color(0xFFF0F9FF),  // Lightest blue
+      body: Stack(
+        children: [
+          GradientBackground(
+            // Match profile screen colors
+            colors: const [
+              Color(0xFFEFF6FF),  // Light blue
+              Color(0xFFEDE9FE),  // Light purple
+              Color(0xFFFDF2F8),  // Light pink
+              Color(0xFFF0F9FF),  // Lightest blue
+            ],
+            child: Column(
+              children: [
+                // Solid top safe area
+                Container(
+                  height: topSafePadding,
+                  color: const Color(0xFFEFF6FF),
+                ),
+                // App bar
+                _buildAppBar(),
+                // Content
+                Expanded(
+                  child: RefreshIndicator(
+                    onRefresh: _refreshReports,
+                    color: const Color(0xFF6366F1),
+                    backgroundColor: Colors.white,
+                    child: reportState.isLoading
+                        ? _buildLoadingState()
+                        : reports.isEmpty
+                            ? _buildEmptyState()
+                            : _buildReportList(reports),
+                  ),
+                ),
+                // Solid bottom safe area
+                Container(
+                  height: bottomSafePadding,
+                  color: const Color(0xFFF0F9FF),
+                ),
+              ],
+            ),
+          ),
+          // Add SmartConnectionStatusCard for offline mode indication
+          const SmartConnectionStatusCard(),
         ],
-        child: Column(
-          children: [
-            // Solid top safe area
-            Container(
-              height: topSafePadding,
-              color: const Color(0xFFEFF6FF),
-            ),
-            // App bar
-            _buildAppBar(),
-            // Content
-            Expanded(
-              child: RefreshIndicator(
-                onRefresh: _refreshReports,
-                color: const Color(0xFF6366F1),
-                backgroundColor: Colors.white,
-                child: reportState.isLoading
-                    ? _buildLoadingState()
-                    : reports.isEmpty
-                        ? _buildEmptyState()
-                        : _buildReportList(reports),
-              ),
-            ),
-            // Solid bottom safe area
-            Container(
-              height: bottomSafePadding,
-              color: const Color(0xFFF0F9FF),
-            ),
-          ],
-        ),
       ),
     );
   }

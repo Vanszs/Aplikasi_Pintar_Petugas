@@ -6,6 +6,7 @@ import 'package:lottie/lottie.dart';
 import 'dart:async';
 import '../providers/auth_provider.dart';
 import '../providers/global_refresh_provider.dart';
+import '../main.dart';
 
 class SmartConnectionStatusCard extends ConsumerStatefulWidget {
   final VoidCallback? onRefreshComplete;
@@ -23,6 +24,7 @@ class _SmartConnectionStatusCardState extends ConsumerState<SmartConnectionStatu
     with TickerProviderStateMixin {
   bool _isRefreshing = false;
   Timer? _hideTimer;
+  Timer? _periodicCheckTimer; // Tambahkan timer untuk periodic check
   StreamSubscription<ConnectivityResult>? _connectivitySubscription;
   bool _hasInternetConnection = true;
   
@@ -73,6 +75,7 @@ class _SmartConnectionStatusCardState extends ConsumerState<SmartConnectionStatu
       _checkInitialState();
       _setupConnectivityListener();
       _performInitialConnectivityCheck();
+      _startPeriodicInternetCheck(); // Tambahkan periodic check untuk auto-detect
     });
   }
 
@@ -94,26 +97,65 @@ class _SmartConnectionStatusCardState extends ConsumerState<SmartConnectionStatu
   Future<void> _performInitialConnectivityCheck() async {
     try {
       final connectivityResult = await Connectivity().checkConnectivity();
-      _handleConnectivityChange(connectivityResult);
+      if (connectivityResult != ConnectivityResult.none) {
+        // Ada koneksi basic, cek internet sesungguhnya
+        final connectivityService = ref.read(connectivityServiceProvider);
+        final hasRealInternet = await connectivityService.checkInternetConnection();
+        
+        _hasInternetConnection = hasRealInternet;
+        ref.read(internetConnectionProvider.notifier).state = hasRealInternet;
+        
+        final authState = ref.read(authProvider);
+        if (authState.isAuthenticated && !hasRealInternet) {
+          _showOfflineMode();
+        }
+      } else {
+        // Tidak ada koneksi sama sekali
+        _hasInternetConnection = false;
+        ref.read(internetConnectionProvider.notifier).state = false;
+        
+        final authState = ref.read(authProvider);
+        if (authState.isAuthenticated) {
+          _showOfflineMode();
+        }
+      }
     } catch (e) {
       // Handle connectivity check error silently
     }
   }
 
-  void _handleConnectivityChange(ConnectivityResult result) {
-    final hasConnection = result != ConnectivityResult.none;
+  void _handleConnectivityChange(ConnectivityResult result) async {
+    // Jangan hanya cek connectivity result, tapi cek internet sesungguhnya
+    final hasBasicConnection = result != ConnectivityResult.none;
     
-    if (_hasInternetConnection != hasConnection) {
-      _hasInternetConnection = hasConnection;
-      ref.read(internetConnectionProvider.notifier).state = hasConnection;
+    if (hasBasicConnection) {
+      // Ada koneksi WiFi/mobile, sekarang cek internet sesungguhnya
+      final connectivityService = ref.read(connectivityServiceProvider);
+      final hasRealInternet = await connectivityService.checkInternetConnection();
       
-      final authState = ref.read(authProvider);
-      
-      if (authState.isAuthenticated) {
-        if (!hasConnection) {
+      if (_hasInternetConnection != hasRealInternet) {
+        _hasInternetConnection = hasRealInternet;
+        ref.read(internetConnectionProvider.notifier).state = hasRealInternet;
+        
+        final authState = ref.read(authProvider);
+        
+        if (authState.isAuthenticated) {
+          if (!hasRealInternet) {
+            _showOfflineMode();
+          } else {
+            _handleConnectionRestored();
+          }
+        }
+      }
+    } else {
+      // Tidak ada koneksi sama sekali
+      if (_hasInternetConnection) {
+        _hasInternetConnection = false;
+        ref.read(internetConnectionProvider.notifier).state = false;
+        
+        final authState = ref.read(authProvider);
+        if (authState.isAuthenticated) {
           _showOfflineMode();
-        } else {
-          _handleConnectionRestored();
         }
       }
     }
@@ -166,22 +208,62 @@ class _SmartConnectionStatusCardState extends ConsumerState<SmartConnectionStatu
     });
     
     try {
+      // Pertama, cek koneksi internet sesungguhnya
+      final connectivityService = ref.read(connectivityServiceProvider);
+      final hasRealInternet = await connectivityService.checkInternetConnection();
+      
+      if (!hasRealInternet) {
+        // Masih tidak ada internet
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Koneksi internet masih tidak tersedia. Coba lagi nanti.',
+                style: GoogleFonts.inter(color: Colors.white),
+              ),
+              backgroundColor: Colors.red.shade600,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
+        return;
+      }
+      
+      // Update status koneksi
+      _hasInternetConnection = true;
+      ref.read(internetConnectionProvider.notifier).state = true;
+      
+      // Coba refresh data
       final globalRefresh = ref.read(globalRefreshProvider);
       final success = await globalRefresh();
       
       if (success) {
         _hideOfflineMode();
         widget.onRefreshComplete?.call();
-      } else {
-        // Show error message briefly
+        
+        // Show success message
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                'Gagal menghubungkan. Periksa koneksi internet Anda.',
+                'Koneksi berhasil dipulihkan!',
                 style: GoogleFonts.inter(color: Colors.white),
               ),
-              backgroundColor: Colors.red.shade600,
+              backgroundColor: Colors.green.shade600,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
+      } else {
+        // Refresh gagal meskipun ada internet
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Gagal memuat data. Coba lagi nanti.',
+                style: GoogleFonts.inter(color: Colors.white),
+              ),
+              backgroundColor: Colors.orange.shade600,
               duration: const Duration(seconds: 3),
             ),
           );
@@ -209,12 +291,43 @@ class _SmartConnectionStatusCardState extends ConsumerState<SmartConnectionStatu
     }
   }
 
+  // Tambahkan method untuk periodic check
+  void _startPeriodicInternetCheck() {
+    // Check setiap 10 detik kalau lagi offline
+    _periodicCheckTimer = Timer.periodic(const Duration(seconds: 10), (timer) async {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      
+      final authState = ref.read(authProvider);
+      if (!authState.isAuthenticated) {
+        timer.cancel();
+        return;
+      }
+      
+      // Hanya cek kalau lagi dalam mode offline
+      if (!_hasInternetConnection) {
+        final connectivityService = ref.read(connectivityServiceProvider);
+        final hasRealInternet = await connectivityService.checkInternetConnection();
+        
+        if (hasRealInternet && _hasInternetConnection != hasRealInternet) {
+          // Internet sudah kembali!
+          _hasInternetConnection = true;
+          ref.read(internetConnectionProvider.notifier).state = true;
+          _handleConnectionRestored();
+        }
+      }
+    });
+  }
+
   @override
   void dispose() {
     _fadeController.dispose();
     _slideController.dispose();
     _connectivitySubscription?.cancel();
     _hideTimer?.cancel();
+    _periodicCheckTimer?.cancel(); // Cancel periodic timer
     super.dispose();
   }
 

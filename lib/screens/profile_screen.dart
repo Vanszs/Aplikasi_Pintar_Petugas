@@ -8,6 +8,7 @@ import '../providers/auth_provider.dart';
 import '../providers/report_provider.dart';
 import '../providers/global_refresh_provider.dart';
 import '../widgets/gradient_background.dart';
+import '../widgets/smart_connection_status_card.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -28,26 +29,28 @@ class ProfileScreen extends ConsumerWidget {
 
     // Use the modern gradient background that matches other screens
     return Scaffold(
-      body: GradientBackground(
-        // Use a special profile gradient for visual differentiation
-        colors: const [
-          Color(0xFFEFF6FF),  // Light blue
-          Color(0xFFEDE9FE),  // Light purple
-          Color(0xFFFDF2F8),  // Light pink
-          Color(0xFFF0F9FF),  // Lightest blue
-        ],
-        child: Column(
-          children: [
-            // Solid top safe area
-            Container(
-              height: topSafePadding,
-              color: const Color(0xFFEFF6FF),
-            ),
-            
-            // Content
-            Expanded(
-              child: RefreshIndicator(
-                onRefresh: () async {
+      body: Stack(
+        children: [
+          GradientBackground(
+            // Use a special profile gradient for visual differentiation
+            colors: const [
+              Color(0xFFEFF6FF),  // Light blue
+              Color(0xFFEDE9FE),  // Light purple
+              Color(0xFFFDF2F8),  // Light pink
+              Color(0xFFF0F9FF),  // Lightest blue
+            ],
+            child: Column(
+              children: [
+                // Solid top safe area
+                Container(
+                  height: topSafePadding,
+                  color: const Color(0xFFEFF6FF),
+                ),
+                
+                // Content
+                Expanded(
+                  child: RefreshIndicator(
+                    onRefresh: () async {
                   final globalRefresh = ref.read(globalRefreshProvider);
                   await globalRefresh();
                 },
@@ -73,11 +76,8 @@ class ProfileScreen extends ConsumerWidget {
                           const SizedBox(height: 16),
                           _buildActivityCard(ref).animate(delay: 200.ms).fadeIn(duration: 500.ms).slideY(begin: 0.2),
                           const SizedBox(height: 32),
-                          // Credits Button
-                          _buildCreditsButton(context).animate(delay: 250.ms).fadeIn(duration: 500.ms),
-                          const SizedBox(height: 16),
                           // Logout Button
-                          _buildLogoutButton(context, ref).animate(delay: 300.ms).fadeIn(duration: 500.ms),
+                          _buildLogoutButton(context, ref).animate(delay: 250.ms).fadeIn(duration: 500.ms),
                           SizedBox(height: 20 + bottomSafePadding),
                         ]),
                       ),
@@ -94,6 +94,10 @@ class ProfileScreen extends ConsumerWidget {
             ),
           ],
         ),
+      ),
+      // Add SmartConnectionStatusCard for offline mode indication
+      const SmartConnectionStatusCard(),
+        ],
       ),
     );
   }
@@ -545,30 +549,6 @@ class ProfileScreen extends ConsumerWidget {
           borderRadius: BorderRadius.circular(16),
         ),
         elevation: 0,
-      ),
-    );
-  }
-
-  Widget _buildCreditsButton(BuildContext context) {
-    return TextButton.icon(
-      onPressed: () => context.push('/credits'),
-      icon: const Icon(Icons.info_outline_rounded),
-      label: Text(
-        'Credits',
-        style: GoogleFonts.inter(
-          fontSize: 16,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-      style: TextButton.styleFrom(
-        foregroundColor: const Color(0xFF4F46E5),
-        backgroundColor: Colors.white,
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        minimumSize: const Size(double.infinity, 56),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: const BorderSide(color: Color(0xFFE5E7EB)),
-        ),
       ),
     );
   }

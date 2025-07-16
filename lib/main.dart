@@ -582,13 +582,13 @@ class AutoSwitchingAuthNotifier extends AuthNotifier {
         return true;
       }
       
-      // If refresh failed, user needs to login again
-      developer.log('Token refresh failed, logging out', name: 'AutoSwitchingAuth');
-      await logout();
+      // FIXED: Jangan logout otomatis saat refresh gagal - bisa karena masalah koneksi
+      developer.log('Token refresh failed - keeping user logged in for offline mode', name: 'AutoSwitchingAuth');
       return false;
       
     } catch (e) {
-      developer.log('Error refreshing token: $e', name: 'AutoSwitchingAuth');
+      developer.log('Error refreshing token (keeping user logged in): $e', name: 'AutoSwitchingAuth');
+      // Jangan logout otomatis, biar user tetap login dalam mode offline
       return false;
     }
   }

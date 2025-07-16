@@ -13,6 +13,7 @@ import '../providers/report_provider.dart';
 import '../providers/global_refresh_provider.dart';
 import '../widgets/gradient_background.dart';
 import '../widgets/report_action_button.dart';
+import '../widgets/smart_connection_status_card.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -143,6 +144,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                 ),
               ),
             ),
+            // Add SmartConnectionStatusCard for offline mode indication
+            const SmartConnectionStatusCard(),
           ],
         ),
       ),
