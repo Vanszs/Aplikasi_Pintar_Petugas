@@ -631,22 +631,57 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                         overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 4),
-                      Text(
-                        report.formattedDate(),
-                        style: GoogleFonts.inter(
-                          fontSize: 12,
-                          color: const Color(0xFF64748B),
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'Pelapor: ${report.userName ?? 'Tidak diketahui'}',
-                        style: GoogleFonts.inter(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w500,
-                          color: const Color(0xFF64748B),
-                        ),
-                        overflow: TextOverflow.ellipsis,
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  report.formattedDate(),
+                                  style: GoogleFonts.inter(
+                                    fontSize: 12,
+                                    color: const Color(0xFF64748B),
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  'Pelapor: ${report.userName ?? 'Tidak diketahui'}',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w500,
+                                    color: const Color(0xFF64748B),
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: _getStatusColor(report.status),
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: _getStatusColor(report.status).withValues(alpha: 0.3),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: Text(
+                              _getStatusText(report.status),
+                              style: GoogleFonts.inter(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -669,5 +704,39 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
     if (hour < 12) return 'Selamat Pagi';
     if (hour < 17) return 'Selamat Siang';
     return 'Selamat Malam';
+  }
+
+  Color _getStatusColor(String? status) {
+    switch (status?.toLowerCase()) {
+      case 'menunggu':
+        return const Color(0xFFF59E0B); // Yellow/Amber
+      case 'diajukan':
+        return const Color(0xFFEF4444); // Red-orange for submitted
+      case 'diproses':
+        return const Color(0xFF3B82F6); // Blue for in progress
+      case 'selesai':
+        return const Color(0xFF10B981); // Green for completed
+      case 'ditolak':
+        return const Color(0xFFDC2626); // Dark red for rejected
+      default:
+        return const Color(0xFF6B7280); // Gray for unknown
+    }
+  }
+
+  String _getStatusText(String? status) {
+    switch (status?.toLowerCase()) {
+      case 'menunggu':
+        return 'MENUNGGU';
+      case 'diajukan':
+        return 'DIAJUKAN';
+      case 'diproses':
+        return 'DIPROSES';
+      case 'selesai':
+        return 'SELESAI';
+      case 'ditolak':
+        return 'DITOLAK';
+      default:
+        return 'PENDING';
+    }
   }
 }

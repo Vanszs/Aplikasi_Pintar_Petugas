@@ -22,6 +22,15 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
   // Add pagination state variables
   int _currentPage = 0;
   final int _itemsPerPage = 10;
+  
+  // Add filter and sort state variables
+  String _selectedRw = '';
+  String _selectedRt = '';
+  String _selectedStatus = '';
+  String _sortBy = 'newest'; // 'newest' or 'oldest'
+  final TextEditingController _rwController = TextEditingController();
+  final TextEditingController _rtController = TextEditingController();
+  bool _showFilters = false;
 
   @override
   void initState() {
@@ -29,6 +38,13 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(reportProvider.notifier).loadAllReports();
     });
+  }
+
+  @override
+  void dispose() {
+    _rwController.dispose();
+    _rtController.dispose();
+    super.dispose();
   }
 
   Future<void> _refreshReports() async {
@@ -44,17 +60,53 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
 
   // Get paginated reports
   List<Report> _getPaginatedReports(List<Report> allReports) {
+    // Apply filters and sorting first
+    List<Report> filteredReports = _applyFiltersAndSort(allReports);
+    
     final startIndex = _currentPage * _itemsPerPage;
-    final endIndex = startIndex + _itemsPerPage > allReports.length
-        ? allReports.length
+    final endIndex = startIndex + _itemsPerPage > filteredReports.length
+        ? filteredReports.length
         : startIndex + _itemsPerPage;
 
-    return allReports.sublist(startIndex, endIndex);
+    return filteredReports.sublist(startIndex, endIndex);
+  }
+
+  // Apply filters and sorting
+  List<Report> _applyFiltersAndSort(List<Report> reports) {
+    List<Report> filtered = List.from(reports);
+
+    // Filter by RW (regex to handle different formats: RW1, RW 1, RW 01, etc.)
+    if (_selectedRw.isNotEmpty) {
+      final rwRegex = RegExp(r'RW\s*0*' + _selectedRw.replaceAll(RegExp(r'[^\d]'), '') + r'\b', caseSensitive: false);
+      filtered = filtered.where((report) => rwRegex.hasMatch(report.address)).toList();
+    }
+
+    // Filter by RT (regex to handle different formats: RT1, RT 1, RT 01, etc.)
+    if (_selectedRt.isNotEmpty) {
+      final rtRegex = RegExp(r'RT\s*0*' + _selectedRt.replaceAll(RegExp(r'[^\d]'), '') + r'\b', caseSensitive: false);
+      filtered = filtered.where((report) => rtRegex.hasMatch(report.address)).toList();
+    }
+
+    // Filter by status
+    if (_selectedStatus.isNotEmpty && _selectedStatus != 'semua') {
+      filtered = filtered.where((report) => 
+        report.status.toLowerCase() == _selectedStatus.toLowerCase()).toList();
+    }
+
+    // Apply sorting (using UTC+7 time)
+    if (_sortBy == 'newest') {
+      filtered.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    } else {
+      filtered.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+    }
+
+    return filtered;
   }
 
   // Calculate total pages
-  int _getTotalPages(int totalReports) {
-    return (totalReports / _itemsPerPage).ceil();
+  int _getTotalPages(List<Report> allReports) {
+    final filteredReports = _applyFiltersAndSort(allReports);
+    return (filteredReports.length / _itemsPerPage).ceil();
   }
 
   // Navigate to next page
@@ -102,6 +154,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                 ),
                 // App bar
                 _buildAppBar(),
+                // Filter section
+                _buildFilterSection(),
                 // Content
                 Expanded(
                   child: RefreshIndicator(
@@ -164,6 +218,31 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                 ),
               ),
               const Spacer(),
+              // Filter toggle button
+              GestureDetector(
+                onTap: () {
+                  setState(() {
+                    _showFilters = !_showFilters;
+                  });
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: _showFilters 
+                        ? const Color(0xFF6366F1).withAlpha(51)
+                        : const Color(0xFF9AA6B2).withAlpha(51),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.filter_list,
+                    color: _showFilters 
+                        ? const Color(0xFF6366F1)
+                        : const Color(0xFF334155),
+                    size: 20,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
               GestureDetector(
                 onTap: isGlobalRefreshing ? null : _refreshReports,
                 child: Semantics(
@@ -286,7 +365,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
   }
 
   Widget _buildReportList(List<Report> reports) {
-    final totalPages = _getTotalPages(reports.length);
+    final totalPages = _getTotalPages(reports);
     final paginatedReports = _getPaginatedReports(reports);
 
     return Column(
@@ -397,6 +476,236 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
         ),
       ),
     );
+  }
+
+  Widget _buildFilterSection() {
+    if (!_showFilters) return const SizedBox.shrink();
+    
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(
+          bottom: BorderSide(color: Color(0xFFE5E7EB), width: 1),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // RW and RT filters
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'RW',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF374151),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Container(
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF9FAFB),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: const Color(0xFFE5E7EB)),
+                      ),
+                      child: TextField(
+                        controller: _rwController,
+                        onChanged: (value) {
+                          setState(() {
+                            _selectedRw = value;
+                            _currentPage = 0; // Reset to first page
+                          });
+                        },
+                        decoration: const InputDecoration(
+                          hintText: 'Contoh: 1, 01',
+                          hintStyle: TextStyle(fontSize: 12, color: Color(0xFF9CA3AF)),
+                          border: InputBorder.none,
+                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                        ),
+                        style: GoogleFonts.inter(fontSize: 14),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'RT',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF374151),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Container(
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF9FAFB),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: const Color(0xFFE5E7EB)),
+                      ),
+                      child: TextField(
+                        controller: _rtController,
+                        onChanged: (value) {
+                          setState(() {
+                            _selectedRt = value;
+                            _currentPage = 0; // Reset to first page
+                          });
+                        },
+                        decoration: const InputDecoration(
+                          hintText: 'Contoh: 1, 01',
+                          hintStyle: TextStyle(fontSize: 12, color: Color(0xFF9CA3AF)),
+                          border: InputBorder.none,
+                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                        ),
+                        style: GoogleFonts.inter(fontSize: 14),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          // Status and Sort filters
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Status',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF374151),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Container(
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF9FAFB),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: const Color(0xFFE5E7EB)),
+                      ),
+                      child: DropdownButtonFormField<String>(
+                        value: _selectedStatus.isEmpty ? 'semua' : _selectedStatus,
+                        onChanged: (value) {
+                          setState(() {
+                            _selectedStatus = value ?? '';
+                            _currentPage = 0;
+                          });
+                        },
+                        decoration: const InputDecoration(
+                          border: InputBorder.none,
+                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        ),
+                        style: GoogleFonts.inter(fontSize: 14, color: const Color(0xFF374151)),
+                        items: [
+                          DropdownMenuItem(value: 'semua', child: Text('Semua Status', style: GoogleFonts.inter(fontSize: 12))),
+                          DropdownMenuItem(value: 'menunggu', child: Text('Menunggu', style: GoogleFonts.inter(fontSize: 12))),
+                          DropdownMenuItem(value: 'diajukan', child: Text('Diajukan', style: GoogleFonts.inter(fontSize: 12))),
+                          DropdownMenuItem(value: 'diproses', child: Text('Diproses', style: GoogleFonts.inter(fontSize: 12))),
+                          DropdownMenuItem(value: 'selesai', child: Text('Selesai', style: GoogleFonts.inter(fontSize: 12))),
+                          DropdownMenuItem(value: 'ditolak', child: Text('Ditolak', style: GoogleFonts.inter(fontSize: 12))),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Urutkan',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF374151),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Container(
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF9FAFB),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: const Color(0xFFE5E7EB)),
+                      ),
+                      child: DropdownButtonFormField<String>(
+                        value: _sortBy,
+                        onChanged: (value) {
+                          setState(() {
+                            _sortBy = value ?? 'newest';
+                            _currentPage = 0;
+                          });
+                        },
+                        decoration: const InputDecoration(
+                          border: InputBorder.none,
+                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        ),
+                        style: GoogleFonts.inter(fontSize: 14, color: const Color(0xFF374151)),
+                        items: [
+                          DropdownMenuItem(value: 'newest', child: Text('Terbaru', style: GoogleFonts.inter(fontSize: 12))),
+                          DropdownMenuItem(value: 'oldest', child: Text('Terlama', style: GoogleFonts.inter(fontSize: 12))),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          // Clear filters button
+          Row(
+            children: [
+              TextButton(
+                onPressed: () {
+                  setState(() {
+                    _selectedRw = '';
+                    _selectedRt = '';
+                    _selectedStatus = '';
+                    _sortBy = 'newest';
+                    _rwController.clear();
+                    _rtController.clear();
+                    _currentPage = 0;
+                  });
+                },
+                style: TextButton.styleFrom(
+                  foregroundColor: const Color(0xFF6366F1),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                ),
+                child: Text(
+                  'Hapus Filter',
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    ).animate().slideY(begin: -0.3).fadeIn();
   }
 
 }

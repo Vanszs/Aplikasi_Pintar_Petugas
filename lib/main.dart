@@ -167,16 +167,32 @@ class _MyAppState extends ConsumerState<MyApp> {
     // Initialize FCM service after the app is built
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initializeFCM();
-      _initializeOfflineHandler();
+      // Delay offline handler initialization to ensure auth state is ready
+      Future.delayed(const Duration(milliseconds: 500), () {
+        _initializeOfflineHandler();
+      });
     });
   }
 
   Future<void> _initializeOfflineHandler() async {
     try {
-      // Force check offline state for authenticated users when app starts
       final offlineHandler = ref.read(globalOfflineHandlerProvider);
-      await offlineHandler.forceCheckOfflineState();
-      developer.log('Offline handler force check completed', name: 'MyApp');
+      final authState = ref.read(authProvider);
+      
+      developer.log('Initializing offline handler - Auth: ${authState.isAuthenticated}', name: 'MyApp');
+      
+      // Only do offline checks if user is authenticated
+      if (authState.isAuthenticated) {
+        // First, do immediate offline detection for cold boot scenarios
+        await offlineHandler.forceCheckOfflineState();
+        
+        // Then do the full force check with multiple attempts like reference app
+        await offlineHandler.forceCheckOfflineState();
+        
+        developer.log('Offline handler initialization completed for authenticated user', name: 'MyApp');
+      } else {
+        developer.log('User not authenticated, skipping offline handler initialization', name: 'MyApp');
+      }
     } catch (e) {
       developer.log('Error initializing offline handler: $e', name: 'MyApp');
     }
@@ -556,10 +572,14 @@ class AutoSwitchingAuthNotifier extends AuthNotifier {
           user: user,
         );
         
+        developer.log('Authentication restored for user: ${user.username}', name: 'AutoSwitchingAuth');
+        
+        // CRITICAL: Immediate offline check after auth is restored (like reference app)
+        _checkInitialOfflineStateImmediate();
+        
         // Validate token with the appropriate service
         _validateToken(apiService);
         
-        developer.log('Authentication restored for user: ${user.username}', name: 'AutoSwitchingAuth');
       } catch (e) {
         developer.log('Error restoring authentication: $e', name: 'AutoSwitchingAuth');
         // Clear invalid data
@@ -569,6 +589,32 @@ class AutoSwitchingAuthNotifier extends AuthNotifier {
       developer.log('No saved authentication found', name: 'AutoSwitchingAuth');
     }
   }
+
+  // New immediate method like reference app
+  void _checkInitialOfflineStateImmediate() async {
+    try {
+      developer.log('IMMEDIATE: Checking offline state after auth restore', name: 'AutoSwitchingAuth');
+      
+      final connectivityService = _ref.read(connectivityServiceProvider);
+      final hasInternet = await connectivityService.checkInternetConnection();
+      
+      developer.log('IMMEDIATE: Connectivity check result: hasInternet=$hasInternet', name: 'AutoSwitchingAuth');
+      
+      if (!hasInternet) {
+        // CRITICAL: Use same pattern as reference - force immediate popup
+        final offlineHandler = _ref.read(globalOfflineHandlerProvider);
+        offlineHandler.checkOfflineStateForAuthenticatedUser();
+        
+        developer.log('IMMEDIATE: Triggered offline popup for cold boot', name: 'AutoSwitchingAuth');
+      }
+    } catch (e) {
+      developer.log('Error in immediate offline state check: $e', name: 'AutoSwitchingAuth');
+      // On error, assume offline like reference app
+      final offlineHandler = _ref.read(globalOfflineHandlerProvider);
+      offlineHandler.checkOfflineStateForAuthenticatedUser();
+    }
+  }
+
 
   // New method to validate token using the current API service
   Future<void> _validateToken(dynamic apiService) async {

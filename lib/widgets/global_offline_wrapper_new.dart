@@ -7,19 +7,19 @@ import '../providers/auth_provider.dart';
 import '../providers/global_refresh_provider.dart';
 import 'dart:developer' as developer;
 
-class GlobalOfflineWrapper extends ConsumerStatefulWidget {
+class GlobalOfflineWrapperNew extends ConsumerStatefulWidget {
   final Widget child;
   
-  const GlobalOfflineWrapper({
+  const GlobalOfflineWrapperNew({
     super.key,
     required this.child,
   });
 
   @override
-  ConsumerState<GlobalOfflineWrapper> createState() => _GlobalOfflineWrapperState();
+  ConsumerState<GlobalOfflineWrapperNew> createState() => _GlobalOfflineWrapperNewState();
 }
 
-class _GlobalOfflineWrapperState extends ConsumerState<GlobalOfflineWrapper> 
+class _GlobalOfflineWrapperNewState extends ConsumerState<GlobalOfflineWrapperNew> 
     with TickerProviderStateMixin {
   
   late AnimationController _fadeController;
@@ -28,6 +28,7 @@ class _GlobalOfflineWrapperState extends ConsumerState<GlobalOfflineWrapper>
   late Animation<Offset> _slideAnimation;
   bool _isRefreshing = false;
   bool _showOfflineCapsule = false;
+  OverlayEntry? _overlayEntry; // Use overlay like reference app
 
   @override
   void initState() {
@@ -65,156 +66,76 @@ class _GlobalOfflineWrapperState extends ConsumerState<GlobalOfflineWrapper>
       reverseCurve: Curves.easeInCubic,
     ));
 
-    // Check initial state immediately after widget builds
+    // CRITICAL: Check initial state immediately after widget builds (like reference app)
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkInitialOfflineState();
     });
   }
 
-  // Check initial state for cold boot scenarios
+  // Check initial state like reference app
   void _checkInitialOfflineState() {
     final authState = ref.read(authProvider);
     final offlineHandler = ref.read(globalOfflineHandlerProvider);
     
     developer.log('GlobalOfflineWrapper: Initial state check - Auth: ${authState.isAuthenticated}, HasInternet: ${offlineHandler.hasInternetConnection}, Initialized: ${offlineHandler.isInitialized}', name: 'GlobalOfflineWrapper');
     
-    // If authenticated user has no internet, trigger offline state
+    // CRITICAL: If authenticated user has no internet, show popup immediately
     if (authState.isAuthenticated && 
         offlineHandler.isInitialized && 
         !offlineHandler.hasInternetConnection) {
-      // Force the handler to show popup
-      offlineHandler.checkOfflineStateForAuthenticatedUser();
-      
-      // If popup still doesn't show after a short delay, show capsule as fallback
-      Future.delayed(const Duration(milliseconds: 500), () {
-        if (mounted && !offlineHandler.shouldShowOfflinePopup) {
-          setState(() {
-            _showOfflineCapsule = true;
-          });
-          developer.log('Initial check: Showing capsule as fallback', name: 'GlobalOfflineWrapper');
-        }
-      });
+      _showOfflinePopup();
     }
   }
 
-  @override
-  void dispose() {
-    _fadeController.dispose();
-    _slideController.dispose();
-    super.dispose();
+  // Show popup using overlay like reference app
+  void _showOfflinePopup() {
+    if (_overlayEntry != null) return;
+    
+    developer.log('GlobalOfflineWrapper: Showing offline popup via overlay', name: 'GlobalOfflineWrapper');
+    
+    _overlayEntry = _createOfflineOverlay();
+    Overlay.of(context).insert(_overlayEntry!);
+    
+    // Start animations
+    _fadeController.forward();
+    _slideController.forward();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Consumer(
-      builder: (context, ref, child) {
-        final offlineHandler = ref.watch(globalOfflineHandlerProvider);
-        final authState = ref.watch(authProvider);
-        final isGlobalRefreshing = ref.watch(globalRefreshStateProvider);
-        final isOfflineToOnlineSync = ref.watch(offlineToOnlineSyncProvider);
-        final lastSync = ref.watch(lastSyncProvider);
-        
-        // Debug logging untuk troubleshooting
-        developer.log('GlobalOfflineWrapper build - Auth: ${authState.isAuthenticated}, Initialized: ${offlineHandler.isInitialized}, HasInternet: ${offlineHandler.hasInternetConnection}, ShouldShowPopup: ${offlineHandler.shouldShowOfflinePopup}, ShowCapsule: $_showOfflineCapsule', name: 'GlobalOfflineWrapper');
-        
-        // Show refresh indicator ONLY for offline-to-online sync (not for manual pull-to-refresh)
-        final shouldShowRefreshing = isOfflineToOnlineSync && isGlobalRefreshing;
-        
-        // Show offline popup if user is authenticated and handler says we should show it (prioritize popup over capsule)
-        final shouldShowPopup = authState.isAuthenticated && 
-                              offlineHandler.isInitialized && 
-                              offlineHandler.shouldShowOfflinePopup;
-        
-        // Show capsule if offline but popup was dismissed by user or popup is not showing
-        final shouldShowCapsule = authState.isAuthenticated && 
-                                offlineHandler.isInitialized && 
-                                !offlineHandler.hasInternetConnection &&
-                                !shouldShowPopup &&
-                                (_showOfflineCapsule || !offlineHandler.shouldShowOfflinePopup);
-        
-        // Auto reset capsule state when internet is restored
-        if (offlineHandler.hasInternetConnection && _showOfflineCapsule) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) {
-              setState(() {
-                _showOfflineCapsule = false;
-              });
-              developer.log('Internet restored: Hiding capsule', name: 'GlobalOfflineWrapper');
-            }
-          });
-        }
-        
-        // Auto show capsule if offline and no popup is showing (fallback logic)
-        if (authState.isAuthenticated && 
-            offlineHandler.isInitialized && 
-            !offlineHandler.hasInternetConnection &&
-            !offlineHandler.shouldShowOfflinePopup &&
-            !_showOfflineCapsule) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) {
-              setState(() {
-                _showOfflineCapsule = true;
-              });
-              developer.log('Auto-showing capsule: offline but no popup', name: 'GlobalOfflineWrapper');
-            }
-          });
-        }
-        
-        // Handle animation based on shouldShowPopup
-        if (shouldShowPopup) {
-          if (!_fadeController.isCompleted && !_fadeController.isAnimating) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (mounted) {
-                _fadeController.forward();
-                _slideController.forward();
-              }
-            });
-          }
-        } else {
-          if (_fadeController.isCompleted && !_fadeController.isAnimating) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (mounted) {
-                _fadeController.reverse();
-                _slideController.reverse();
-              }
-            });
-          }
-        }
-        
-        return Stack(
-          children: [
-            // Main app content - always allow interaction unless popup is blocking
-            IgnorePointer(
-              ignoring: shouldShowPopup, // Only block interaction when popup is shown
-              child: widget.child,
-            ),
-            
-            // Offline popup overlay with proper animation
-            if (shouldShowPopup || _fadeController.isAnimating || _fadeController.value > 0)
-              _buildOfflinePopupOverlay(lastSync, shouldShowRefreshing),
-            
-            // Offline capsule di pojok kanan atas - doesn't block interaction
-            if (shouldShowCapsule)
-              _buildOfflineCapsule(lastSync),
-          ],
-        );
-      },
-    );
+  // Hide popup and cleanup overlay
+  void _hideOfflinePopup() {
+    if (_overlayEntry == null) return;
+    
+    developer.log('GlobalOfflineWrapper: Hiding offline popup', name: 'GlobalOfflineWrapper');
+    
+    // Animate out
+    _fadeController.reverse().then((_) {
+      _overlayEntry?.remove();
+      _overlayEntry = null;
+    });
+    _slideController.reverse();
+    
+    setState(() {
+      _showOfflineCapsule = false;
+    });
   }
 
-  // Build popup overlay with animation
-  Widget _buildOfflinePopupOverlay(DateTime? lastSync, bool shouldShowRefreshing) {
-    return FadeTransition(
-      opacity: _fadeAnimation,
-      child: Material(
-        color: Colors.black.withValues(alpha: 0.6),
-        child: SlideTransition(
-          position: _slideAnimation,
-          child: Center(
-            child: Container(
-              margin: const EdgeInsets.symmetric(horizontal: 20),
-              constraints: const BoxConstraints(maxHeight: 500),
-              child: _buildOfflinePopupContent(lastSync, shouldShowRefreshing),
+  // Create overlay entry for offline popup (like reference app)
+  OverlayEntry _createOfflineOverlay() {
+    return OverlayEntry(
+      builder: (context) => Positioned.fill(
+        child: FadeTransition(
+          opacity: _fadeAnimation,
+          child: Material(
+            color: Colors.black.withValues(alpha: 0.6),
+            child: SlideTransition(
+              position: _slideAnimation,
+              child: Center(
+                child: Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 20),
+                  constraints: const BoxConstraints(maxHeight: 500),
+                  child: _buildOfflinePopupContent(),
+                ),
+              ),
             ),
           ),
         ),
@@ -223,7 +144,10 @@ class _GlobalOfflineWrapperState extends ConsumerState<GlobalOfflineWrapper>
   }
 
   // Build popup content with Lottie animation
-  Widget _buildOfflinePopupContent(DateTime? lastSync, bool shouldShowRefreshing) {
+  Widget _buildOfflinePopupContent() {
+    final lastSync = ref.watch(lastSyncProvider);
+    final shouldShowRefreshing = ref.watch(offlineToOnlineSyncProvider) && ref.watch(globalRefreshStateProvider);
+    
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -241,7 +165,7 @@ class _GlobalOfflineWrapperState extends ConsumerState<GlobalOfflineWrapper>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Lottie animation
+            // Lottie animation (like in reference)
             SizedBox(
               height: 200,
               width: 200,
@@ -391,9 +315,8 @@ class _GlobalOfflineWrapperState extends ConsumerState<GlobalOfflineWrapper>
       developer.log('GlobalOfflineWrapper: Global refresh result: $success', name: 'GlobalOfflineWrapper');
       
       if (success && mounted) {
-        // Success - connection restored, let handler manage popup state
-        final offlineHandler = ref.read(globalOfflineHandlerProvider);
-        offlineHandler.hideOfflinePopup();
+        // Success - connection restored, hide popup
+        _hideOfflinePopup();
       } else if (mounted) {
         // Still no connection - show error feedback
         ScaffoldMessenger.of(context).showSnackBar(
@@ -407,9 +330,8 @@ class _GlobalOfflineWrapperState extends ConsumerState<GlobalOfflineWrapper>
           ),
         );
         
-        // Hide popup and show capsule instead
-        final offlineHandler = ref.read(globalOfflineHandlerProvider);
-        offlineHandler.hideOfflinePopup();
+        // Instead of keeping popup, show capsule
+        _hideOfflinePopup();
         setState(() {
           _showOfflineCapsule = true;
         });
@@ -425,20 +347,21 @@ class _GlobalOfflineWrapperState extends ConsumerState<GlobalOfflineWrapper>
     }
   }
 
-  Widget _buildOfflineCapsule(DateTime? lastSync) {
+  // Build small offline capsule
+  Widget _buildSmallOfflineCapsule(DateTime? lastSync) {
     return Positioned(
       top: MediaQuery.of(context).padding.top + 10,
       right: 20,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: Colors.red.shade500.withValues(alpha: 0.95),
+          color: Colors.red.withValues(alpha: 0.9),
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.15),
-              blurRadius: 8,
-              offset: const Offset(0, 3),
+              color: Colors.black.withValues(alpha: 0.1),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
             ),
           ],
         ),
@@ -446,23 +369,131 @@ class _GlobalOfflineWrapperState extends ConsumerState<GlobalOfflineWrapper>
           mainAxisSize: MainAxisSize.min,
           children: [
             const Icon(
-              Icons.wifi_off_rounded,
-              size: 16,
+              Icons.wifi_off,
+              size: 12,
               color: Colors.white,
             ),
-            const SizedBox(width: 6),
+            const SizedBox(width: 8),
             Text(
               'Offline',
               style: GoogleFonts.inter(
-                fontSize: 13,
+                fontSize: 12,
                 color: Colors.white,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.2,
+                fontWeight: FontWeight.w500,
               ),
             ),
           ],
         ),
       ),
     );
+  }
+
+  // Build sync indicator
+  Widget _buildSyncIndicator() {
+    return Positioned(
+      top: MediaQuery.of(context).padding.top + 10,
+      right: 20,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.blue.withValues(alpha: 0.9),
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.1),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(
+              width: 12,
+              height: 12,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              'Menyinkronkan...',
+              style: GoogleFonts.inter(
+                fontSize: 12,
+                color: Colors.white,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Consumer(
+      builder: (context, ref, child) {
+        final offlineHandler = ref.watch(globalOfflineHandlerProvider);
+        final authState = ref.watch(authProvider);
+        final isGlobalRefreshing = ref.watch(globalRefreshStateProvider);
+        final isOfflineToOnlineSync = ref.watch(offlineToOnlineSyncProvider);
+        final lastSync = ref.watch(lastSyncProvider);
+        
+        // Debug logging untuk troubleshooting
+        developer.log('GlobalOfflineWrapper build - Auth: ${authState.isAuthenticated}, Initialized: ${offlineHandler.isInitialized}, HasInternet: ${offlineHandler.hasInternetConnection}, Overlay: ${_overlayEntry != null}, Capsule: $_showOfflineCapsule', name: 'GlobalOfflineWrapper');
+        
+        // Show refresh indicator ONLY for offline-to-online sync (not for manual pull-to-refresh)
+        final shouldShowRefreshing = isOfflineToOnlineSync && isGlobalRefreshing;
+        
+        // Listen to real-time changes (like reference app)
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (authState.isAuthenticated && offlineHandler.isInitialized) {
+            if (!offlineHandler.hasInternetConnection && _overlayEntry == null && !_showOfflineCapsule) {
+              // Show popup if offline and no popup/capsule is showing
+              _showOfflinePopup();
+            } else if (offlineHandler.hasInternetConnection && (_overlayEntry != null || _showOfflineCapsule)) {
+              // Hide popup/capsule if online
+              _hideOfflinePopup();
+              setState(() {
+                _showOfflineCapsule = false;
+              });
+            }
+          }
+        });
+        
+        // Show capsule if popup was dismissed but still offline
+        final shouldShowCapsule = authState.isAuthenticated && 
+                                offlineHandler.isInitialized && 
+                                !offlineHandler.hasInternetConnection &&
+                                _overlayEntry == null &&
+                                _showOfflineCapsule;
+
+        return Stack(
+          children: [
+            // Main app content
+            widget.child,
+            
+            // Small offline capsule (when popup dismissed)
+            if (shouldShowCapsule)
+              _buildSmallOfflineCapsule(lastSync),
+            
+            // Sync indicator (only for offline-to-online transitions)
+            if (shouldShowRefreshing)
+              _buildSyncIndicator(),
+          ],
+        );
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    _overlayEntry?.remove();
+    _fadeController.dispose();
+    _slideController.dispose();
+    super.dispose();
   }
 }

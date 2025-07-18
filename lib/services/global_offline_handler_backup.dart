@@ -12,7 +12,7 @@ final globalOfflineHandlerProvider = ChangeNotifierProvider<GlobalOfflineHandler
   return GlobalOfflineHandler(ref);
 });
 
-class GlobalOfflineHandler extends ChangeNotifier with WidgetsBindingObserver {
+class GlobalOfflineHandler extends ChangeNotifier {
   final Ref _ref;
   StreamSubscription<ConnectivityResult>? _connectivitySubscription;
   Timer? _periodicCheckTimer;
@@ -27,7 +27,6 @@ class GlobalOfflineHandler extends ChangeNotifier with WidgetsBindingObserver {
   ProviderSubscription<AuthState>? _authSubscription;
 
   GlobalOfflineHandler(this._ref) {
-    WidgetsBinding.instance.addObserver(this); // Add lifecycle observer
     _initialize();
     _setupAuthListener();
   }
@@ -379,24 +378,8 @@ class GlobalOfflineHandler extends ChangeNotifier with WidgetsBindingObserver {
     }
   }
 
-  // Handle app lifecycle changes (app resume/pause)
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    super.didChangeAppLifecycleState(state);
-    
-    if (state == AppLifecycleState.resumed) {
-      developer.log('App resumed - performing connectivity check', name: 'GlobalOfflineHandler');
-      
-      // When app resumes, check connectivity immediately
-      Future.delayed(const Duration(milliseconds: 500), () {
-        forceCheckOfflineState();
-      });
-    }
-  }
-
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this); // Remove lifecycle observer
     _connectivitySubscription?.cancel();
     _periodicCheckTimer?.cancel();
     _initialCheckTimer?.cancel();
