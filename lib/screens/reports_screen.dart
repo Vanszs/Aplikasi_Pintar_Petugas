@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:lottie/lottie.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/report.dart';
 import '../providers/report_provider.dart';
 import '../providers/global_refresh_provider.dart';
@@ -35,6 +36,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
   @override
   void initState() {
     super.initState();
+    _loadSavedFilters(); // Load saved filters on init
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(reportProvider.notifier).loadAllReports();
     });
@@ -101,6 +103,39 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     }
 
     return filtered;
+  }
+
+  // Save filter preferences
+  Future<void> _saveFilters() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('reports_filter_rw', _selectedRw);
+    await prefs.setString('reports_filter_rt', _selectedRt);
+    await prefs.setString('reports_filter_status', _selectedStatus);
+    await prefs.setString('reports_filter_sort', _sortBy);
+  }
+
+  // Load saved filter preferences
+  Future<void> _loadSavedFilters() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _selectedRw = prefs.getString('reports_filter_rw') ?? '';
+      _selectedRt = prefs.getString('reports_filter_rt') ?? '';
+      _selectedStatus = prefs.getString('reports_filter_status') ?? '';
+      _sortBy = prefs.getString('reports_filter_sort') ?? 'newest';
+      
+      // Update controllers
+      _rwController.text = _selectedRw;
+      _rtController.text = _selectedRt;
+    });
+  }
+
+  // Clear saved filters
+  Future<void> _clearSavedFilters() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('reports_filter_rw');
+    await prefs.remove('reports_filter_rt');
+    await prefs.remove('reports_filter_status');
+    await prefs.remove('reports_filter_sort');
   }
 
   // Calculate total pages
@@ -674,11 +709,12 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
             ],
           ),
           const SizedBox(height: 12),
-          // Clear filters button
+          // Action buttons - Clear filters and Save
           Row(
             children: [
               TextButton(
-                onPressed: () {
+                onPressed: () async {
+                  await _clearSavedFilters();
                   setState(() {
                     _selectedRw = '';
                     _selectedRt = '';
@@ -695,6 +731,40 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                 ),
                 child: Text(
                   'Hapus Filter',
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              const Spacer(),
+              ElevatedButton(
+                onPressed: () async {
+                  await _saveFilters();
+                  setState(() {
+                    _showFilters = false; // Close filter popup
+                  });
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        'Filter berhasil disimpan',
+                        style: GoogleFonts.inter(color: Colors.white),
+                      ),
+                      backgroundColor: Colors.green,
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF6366F1),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                child: Text(
+                  'Simpan',
                   style: GoogleFonts.inter(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
