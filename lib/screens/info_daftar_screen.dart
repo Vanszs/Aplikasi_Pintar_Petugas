@@ -65,7 +65,7 @@ class InfoDaftarScreen extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Prosedur Pendaftaran',
+          'Pendaftaran Akun Petugas',
           style: GoogleFonts.inter(
             fontSize: 28,
             fontWeight: FontWeight.bold,
@@ -74,7 +74,7 @@ class InfoDaftarScreen extends StatelessWidget {
         ),
         const SizedBox(height: 12),
         Text(
-          'Untuk menjaga keamanan dan validitas data, pendaftaran dilakukan secara offline di kantor kelurahan.',
+          'Akun petugas didaftarkan oleh superadmin kelurahan. Petugas tidak dapat mendaftar sendiri untuk menjaga keamanan sistem.',
           style: GoogleFonts.inter(
             fontSize: 16,
             color: const Color(0xFF64748B), // Medium gray for light background
@@ -107,7 +107,7 @@ class InfoDaftarScreen extends StatelessWidget {
           ),
           const SizedBox(width: 16),
           Text(
-            'Cara Mendaftar',
+            'Cara Menjadi Petugas',
             style: GoogleFonts.inter(
               fontSize: 20,
               fontWeight: FontWeight.bold,
@@ -122,24 +122,24 @@ class InfoDaftarScreen extends StatelessWidget {
   Widget _buildRegistrationSteps() {
     final steps = [
       {
-        'icon': Icons.description_outlined,
-        'title': 'Siapkan Dokumen',
-        'description': 'Bawa KTP, Kartu Keluarga, dan bukti kepemilikan rumah.',
+        'icon': Icons.person_add_outlined,
+        'title': 'Seleksi Kandidat',
+        'description': 'Superadmin kelurahan melakukan seleksi calon petugas berdasarkan kriteria tertentu.',
       },
       {
-        'icon': Icons.location_city_outlined,
-        'title': 'Kunjungi Kelurahan',
-        'description': 'Datang ke kantor kelurahan pada jam kerja (08:00-15:00).',
+        'icon': Icons.assignment_outlined,
+        'title': 'Verifikasi Data',
+        'description': 'Data calon petugas diverifikasi dan divalidasi oleh tim kelurahan.',
       },
       {
-        'icon': Icons.edit_note_outlined,
-        'title': 'Isi Formulir',
-        'description': 'Lengkapi formulir pendaftaran yang disediakan petugas.',
+        'icon': Icons.account_circle_outlined,
+        'title': 'Pembuatan Akun',
+        'description': 'Superadmin membuat akun petugas dengan username dan password unik.',
       },
       {
-        'icon': Icons.verified_user_outlined,
-        'title': 'Verifikasi & Aktivasi',
-        'description': 'Akun Anda akan aktif setelah proses verifikasi selesai.',
+        'icon': Icons.key_outlined,
+        'title': 'Penyerahan Kredensial',
+        'description': 'Username dan password diserahkan kepada petugas untuk akses aplikasi.',
       },
     ];
 
@@ -147,7 +147,7 @@ class InfoDaftarScreen extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Langkah-langkah',
+          'Proses Pendaftaran',
           style: GoogleFonts.inter(
             fontSize: 20,
             fontWeight: FontWeight.w600,
@@ -225,7 +225,7 @@ class InfoDaftarScreen extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Lokasi Pendaftaran',
+          'Kantor Kelurahan',
           style: GoogleFonts.inter(
             fontSize: 20,
             fontWeight: FontWeight.w600,

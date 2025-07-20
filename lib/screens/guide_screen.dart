@@ -159,9 +159,9 @@ class _GuideScreenState extends ConsumerState<GuideScreen> with TickerProviderSt
         _buildSectionHeader('Tujuan Aplikasi', Icons.track_changes),
         const SizedBox(height: 16),
         ...[
-          {'title': 'Meningkatkan Keamanan', 'desc': 'Menciptakan lingkungan yang lebih aman melalui sistem pelaporan cepat', 'icon': Icons.security_rounded},
-          {'title': 'Kolaborasi Warga', 'desc': 'Membangun kewaspadaan bersama antar warga kelurahan', 'icon': Icons.groups_rounded},
-          {'title': 'Respon Cepat', 'desc': 'Memastikan bantuan segera datang saat situasi darurat', 'icon': Icons.speed_rounded},
+          {'title': 'Menerima Laporan', 'desc': 'Menerima dan menindaklanjuti laporan keamanan dari warga kelurahan', 'icon': Icons.security_rounded},
+          {'title': 'Koordinasi Tim', 'desc': 'Berkoordinasi dengan sesama petugas dalam menangani laporan', 'icon': Icons.groups_rounded},
+          {'title': 'Respon Cepat', 'desc': 'Memberikan respon cepat terhadap laporan keamanan yang masuk', 'icon': Icons.speed_rounded},
         ].asMap().entries.map((entry) {
           final index = entry.key;
           final item = entry.value;
@@ -177,9 +177,9 @@ class _GuideScreenState extends ConsumerState<GuideScreen> with TickerProviderSt
         _buildSectionHeader('Cara Kerja', Icons.settings),
         const SizedBox(height: 16),
         ...[
-          {'step': 1, 'title': 'Registrasi', 'desc': 'Daftar melalui kantor kelurahan untuk memastikan keamanan sistem'},
-          {'step': 2, 'title': 'Kirim Laporan', 'desc': 'Gunakan tombol darurat saat melihat kejadian mencurigakan'},
-          {'step': 3, 'title': 'Petugas Merespon', 'desc': 'Laporan diterima petugas keamanan dan ditindaklanjuti'},
+          {'step': 1, 'title': 'Registrasi', 'desc': 'Didaftarkan oleh superadmin kelurahan untuk akses ke sistem'},
+          {'step': 2, 'title': 'Terima Laporan', 'desc': 'Menerima notifikasi laporan keamanan dari warga'},
+          {'step': 3, 'title': 'Tindak Lanjut', 'desc': 'Merespon dan menindaklanjuti laporan sesuai prosedur'},
         ].asMap().entries.map((entry) {
           final index = entry.key;
           final item = entry.value;
@@ -197,28 +197,28 @@ class _GuideScreenState extends ConsumerState<GuideScreen> with TickerProviderSt
   Widget _buildFeaturesTab(double bottomPadding) {
     final features = [
       {
-        'title': 'Lapor Darurat',
-        'desc': 'Kirim laporan kejadian darurat secara instan ke petugas keamanan kelurahan',
-        'icon': Icons.warning_amber_rounded,
-        'color': Colors.red,
-      },
-      {
-        'title': 'Riwayat Laporan',
-        'desc': 'Lihat status dan riwayat laporan yang telah Anda kirimkan',
-        'icon': Icons.history_rounded,
+        'title': 'Kelola Laporan',
+        'desc': 'Menerima, meninjau dan memproses laporan keamanan dari warga',
+        'icon': Icons.assignment_rounded,
         'color': Colors.blue,
       },
       {
-        'title': 'Kontak Darurat',
-        'desc': 'Akses cepat ke nomor telepon penting untuk situasi darurat',
-        'icon': Icons.contacts_rounded,
+        'title': 'Riwayat Laporan',
+        'desc': 'Lihat riwayat semua laporan yang telah ditangani atau sedang dalam proses',
+        'icon': Icons.history_rounded,
         'color': Colors.green,
       },
       {
+        'title': 'Kontak Darurat',
+        'desc': 'Akses cepat ke nomor telepon penting untuk koordinasi tim',
+        'icon': Icons.contacts_rounded,
+        'color': Colors.orange,
+      },
+      {
         'title': 'Panduan Aplikasi',
-        'desc': 'Pelajari cara menggunakan aplikasi dan tips keamanan',
+        'desc': 'Pelajari cara menggunakan aplikasi petugas dan prosedur penanganan',
         'icon': Icons.menu_book_rounded,
-        'color': Colors.amber,
+        'color': Colors.purple,
       },
     ];
 
@@ -326,7 +326,7 @@ class _GuideScreenState extends ConsumerState<GuideScreen> with TickerProviderSt
           ),
           const SizedBox(height: 16),
           Text(
-            'Aplikasi keamanan warga untuk melaporkan kejadian darurat dan menciptakan lingkungan yang lebih aman.',
+            'Aplikasi untuk petugas kelurahan dalam menerima, mengelola, dan menindaklanjuti laporan keamanan dari warga.',
             style: GoogleFonts.inter(
               fontSize: 14,
               color: const Color(0xFF6B7280),

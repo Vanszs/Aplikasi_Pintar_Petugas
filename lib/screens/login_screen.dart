@@ -137,7 +137,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
         ),
         const SizedBox(height: 24),
         Text(
-          'Selamat Datang',
+          'Selamat Datang Petugas',
           style: GoogleFonts.inter(
             fontSize: 28,
             fontWeight: FontWeight.bold,
@@ -146,7 +146,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
         ),
         const SizedBox(height: 8),
         Text(
-          'Masuk untuk mengakses Petugas PINTAR.',
+          'Masuk dengan kredensial yang diberikan oleh superadmin kelurahan.',
           textAlign: TextAlign.center,
           style: GoogleFonts.inter(
             fontSize: 16,
@@ -287,7 +287,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
               ),
               const SizedBox(width: 8),
               Text(
-                'Akses Petugas',
+                'Informasi Akun Petugas',
                 style: GoogleFonts.inter(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
@@ -298,7 +298,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
           ),
           const SizedBox(height: 8),
           Text(
-            'Aplikasi khusus untuk petugas resmi Simokerto PINTAR. Gunakan kredensial yang diberikan oleh koordinator wilayah.',
+            'Akun petugas didaftarkan oleh superadmin kelurahan. Jika belum memiliki akun, hubungi koordinator wilayah Anda.',
             style: GoogleFonts.inter(
               fontSize: 12,
               color: const Color(0xFF1E40AF),
