@@ -708,7 +708,6 @@ app.get('/reports/all', authenticate, async (req, res) => {
       LEFT JOIN users u ON r.user_id = u.id AND r.reporter_type = 'user'
       LEFT JOIN admin a ON r.user_id = a.id AND r.reporter_type = 'admin'
       ORDER BY r.created_at DESC
-      LIMIT 100
     `);
     
     // Pastikan setiap report punya semua key yang dibutuhkan aplikasi

@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'dart:async';
 import '../models/report.dart';
 import '../providers/report_provider.dart';
+import '../providers/auth_provider.dart';
 import '../widgets/gradient_background.dart';
 
 class ReportDetailScreen extends ConsumerStatefulWidget {
@@ -20,6 +21,8 @@ class ReportDetailScreen extends ConsumerStatefulWidget {
 
 class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
   bool _isLoading = true;
+  bool _isUpdatingStatus = false;
+  String? _selectedStatus;
 
   @override
   void initState() {
@@ -54,6 +57,9 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
 
     try {
       debugPrint('Calling loadReportDetail with ID: $reportId');
+      
+      // Clear any previous error messages
+      ref.read(reportProvider.notifier).clearErrorMessage();
       
       // Add timeout to prevent indefinite loading
       await Future.any([
@@ -98,12 +104,268 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
     }
   }
 
+  Future<void> _updateReportStatus(int reportId, String newStatus) async {
+    setState(() {
+      _isUpdatingStatus = true;
+    });
+
+    try {
+      final result = await ref.read(reportProvider.notifier).updateReportStatus(reportId, newStatus);
+      
+      if (result && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle_outline, color: Colors.white),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text('Status laporan berhasil diperbarui'),
+                ),
+              ],
+            ),
+            backgroundColor: const Color(0xFF10B981),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          ),
+        );
+        
+        // Clear any previous error message and reload report detail to get the updated data
+        ref.read(reportProvider.notifier).clearErrorMessage();
+        await _loadReportDetail();
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.error_outline, color: Colors.white),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text('Gagal memperbarui status laporan'),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.error_outline, color: Colors.white),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text('Error: ${e.toString()}'),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isUpdatingStatus = false;
+        });
+      }
+    }
+  }
+
+  void _showStatusUpdateDialog(Report report) {
+    final statusOptions = [
+      {'value': 'pending', 'display': 'Menunggu', 'color': const Color(0xFFF59E0B)},
+      {'value': 'processing', 'display': 'Diproses', 'color': const Color(0xFF3B82F6)},
+      {'value': 'completed', 'display': 'Selesai', 'color': const Color(0xFF10B981)},
+      {'value': 'rejected', 'display': 'Ditolak', 'color': const Color(0xFFEF4444)},
+    ];
+
+    setState(() {
+      _selectedStatus = report.status;
+    });
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+              title: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF3B82F6).withAlpha(26),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(
+                      Icons.edit_outlined,
+                      color: Color(0xFF3B82F6),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Ubah Status',
+                      style: GoogleFonts.inter(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: const Color(0xFF1E293B),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Laporan #${report.id}',
+                    style: GoogleFonts.inter(
+                      fontSize: 14,
+                      color: const Color(0xFF64748B),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Pilih Status Baru:',
+                    style: GoogleFonts.inter(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF374151),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFE5E7EB)),
+                    ),
+                    child: Column(
+                      children: statusOptions.map((option) {
+                        final isSelected = _selectedStatus == option['value'];
+                        return InkWell(
+                          onTap: () {
+                            setDialogState(() {
+                              _selectedStatus = option['value'] as String;
+                            });
+                          },
+                          borderRadius: BorderRadius.circular(12),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                            decoration: BoxDecoration(
+                              color: isSelected 
+                                  ? (option['color'] as Color).withAlpha(26)
+                                  : Colors.transparent,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 20,
+                                  height: 20,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: isSelected 
+                                          ? (option['color'] as Color)
+                                          : const Color(0xFFD1D5DB),
+                                      width: 2,
+                                    ),
+                                    color: isSelected 
+                                        ? (option['color'] as Color)
+                                        : Colors.transparent,
+                                  ),
+                                  child: isSelected
+                                      ? const Icon(
+                                          Icons.check,
+                                          size: 12,
+                                          color: Colors.white,
+                                        )
+                                      : null,
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    option['display'] as String,
+                                    style: GoogleFonts.inter(
+                                      fontSize: 14,
+                                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                                      color: isSelected 
+                                          ? (option['color'] as Color)
+                                          : const Color(0xFF374151),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: Text(
+                    'Batal',
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFF6B7280),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+                ElevatedButton(
+                  onPressed: _selectedStatus != null && _selectedStatus != report.status
+                      ? () {
+                          Navigator.of(context).pop();
+                          _updateReportStatus(report.id, _selectedStatus!);
+                        }
+                      : null,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF3B82F6),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  ),
+                  child: Text(
+                    'Simpan',
+                    style: GoogleFonts.inter(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final reportState = ref.watch(reportProvider);
+    final authState = ref.watch(authProvider);
     final report = reportState.selectedReport;
     final isLoading = _isLoading || reportState.isLoadingDetail;
     final errorMessage = reportState.errorMessage;
+    final isAdmin = authState.user?.isAdmin == true;
     
     // Debug logging
     debugPrint('=== ReportDetailScreen build ===');
@@ -112,6 +374,7 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
     debugPrint('ReportDetailScreen build - reportState.isLoadingDetail: ${reportState.isLoadingDetail}');
     debugPrint('ReportDetailScreen build - report: ${report?.id}');
     debugPrint('ReportDetailScreen build - errorMessage: $errorMessage');
+    debugPrint('ReportDetailScreen build - isAdmin: $isAdmin');
     if (report != null) {
       debugPrint('ReportDetailScreen build - jenisLaporan: "${report.jenisLaporan}"');
       debugPrint('ReportDetailScreen build - userName: "${report.userName}"');
@@ -211,7 +474,7 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
                   : errorMessage != null
                       ? _buildErrorState(errorMessage)
                       : report != null
-                          ? _buildReportDetail(report)
+                          ? _buildReportDetail(report, isAdmin)
                           : _buildNoDataState(),
             ),
             
@@ -326,7 +589,7 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
     );
   }
 
-  Widget _buildReportDetail(Report report) {
+  Widget _buildReportDetail(Report report, bool isAdmin) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -461,12 +724,53 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
                   iconColor: const Color(0xFF10B981),
                 ),
                 const SizedBox(height: 16),
-                _buildDetailRow(
-                  icon: Icons.info_outline,
-                  label: 'Status',
-                  value: report.getStatusDisplay(),
-                  iconColor: report.getStatusColor(),
-                  valueColor: report.getStatusColor(),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildDetailRow(
+                        icon: Icons.info_outline,
+                        label: 'Status',
+                        value: report.getStatusDisplay(),
+                        iconColor: report.getStatusColor(),
+                        valueColor: report.getStatusColor(),
+                      ),
+                    ),
+                    if (isAdmin) ...[
+                      const SizedBox(width: 8),
+                      Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: _isUpdatingStatus ? null : () => _showStatusUpdateDialog(report),
+                          borderRadius: BorderRadius.circular(8),
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF3B82F6).withAlpha(26),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: const Color(0xFF3B82F6).withAlpha(51),
+                                width: 1,
+                              ),
+                            ),
+                            child: _isUpdatingStatus
+                                ? const SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Color(0xFF3B82F6),
+                                    ),
+                                  )
+                                : const Icon(
+                                    Icons.edit_outlined,
+                                    size: 16,
+                                    color: Color(0xFF3B82F6),
+                                  ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ],
             ),

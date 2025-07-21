@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../providers/report_provider.dart';
+import '../providers/jenis_laporan_provider.dart';
 import '../main.dart';
 
 class ReportActionButton extends ConsumerStatefulWidget {
@@ -96,9 +97,32 @@ class _ReportConfirmationSheetState extends ConsumerState<_ReportConfirmationShe
   String _selectedRW = '1';
   final List<String> _rwOptions = List.generate(14, (index) => '${index + 1}');
   String _selectedJenisLaporan = 'kemalingan';
-  final List<String> _jenisLaporanOptions = ['kemalingan', 'kebakaran', 'tawuran', 'lainnya'];
+  List<String> _jenisLaporanOptions = ['kemalingan', 'kebakaran', 'tawuran', 'lainnya'];
   final _customJenisLaporanController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
+
+  @override
+  void initState() {
+    super.initState();
+    // Load jenis laporan from backend
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadJenisLaporan();
+    });
+  }
+  
+  Future<void> _loadJenisLaporan() async {
+    await ref.read(jenisLaporanProvider.notifier).loadJenisLaporan();
+    final jenisLaporanState = ref.read(jenisLaporanProvider);
+    if (jenisLaporanState.jenisLaporanList.isNotEmpty) {
+      setState(() {
+        _jenisLaporanOptions = ref.read(jenisLaporanProvider.notifier).getJenisLaporanOptions();
+        // Set default to first option if current selection is not available
+        if (!_jenisLaporanOptions.contains(_selectedJenisLaporan)) {
+          _selectedJenisLaporan = _jenisLaporanOptions.first;
+        }
+      });
+    }
+  }
 
   @override
   void dispose() {

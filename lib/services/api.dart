@@ -5,7 +5,6 @@ import 'package:http/http.dart' as http;
 import '../models/report.dart';
 import '../models/user.dart';
 import '../utils/timezone_helper.dart';
-import 'error_handler_service.dart';
 
 class ApiService {
   final String baseUrl;
@@ -55,11 +54,19 @@ class ApiService {
         isAdmin = data['is_admin'] ?? false;
         role = data['role'];
         
-        // Jika bukan admin, gagalkan login
+        // Only allow admin users (not regular users/warga)
         if (isAdmin != true) {
           return {
             'success': false,
-            'message': 'Akun ini bukan akun petugas',
+            'message': 'Hanya admin yang dapat menggunakan aplikasi ini',
+          };
+        }
+        
+        // Check if role is "petugas" and reject login
+        if (role == 'petugas') {
+          return {
+            'success': false,
+            'message': 'Silakan login ke aplikasi khusus petugas',
           };
         }
         
@@ -963,7 +970,7 @@ class ApiService {
         };
       }
       
-      final response = await http.patch(
+      final response = await http.put(
         Uri.parse('$baseUrl/reports/$reportId/status'),
         headers: {
           'Content-Type': 'application/json',
@@ -995,6 +1002,43 @@ class ApiService {
       return {
         'success': false,
         'message': 'Terjadi kesalahan koneksi saat memperbarui status laporan.',
+      };
+    }
+  }
+
+  // Get jenis laporan list from backend
+  Future<Map<String, dynamic>> getJenisLaporan() async {
+    try {
+      developer.log('Fetching jenis laporan list', name: 'ApiService');
+      
+      final response = await http.get(
+        Uri.parse('$baseUrl/jenis-laporan'),
+        headers: {
+          'Content-Type': 'application/json',
+          if (token != null) 'Authorization': 'Bearer $token',
+        },
+      ).timeout(const Duration(seconds: 10));
+
+      developer.log('Get jenis laporan response status: ${response.statusCode}', name: 'ApiService');
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return {
+          'success': true,
+          'data': data,
+        };
+      } else {
+        developer.log('Failed to fetch jenis laporan: ${response.body}', name: 'ApiService');
+        return {
+          'success': false,
+          'message': 'Gagal mengambil daftar jenis laporan',
+        };
+      }
+    } catch (e) {
+      developer.log('Error fetching jenis laporan: $e', name: 'ApiService');
+      return {
+        'success': false,
+        'message': 'Error: ${e.toString()}',
       };
     }
   }

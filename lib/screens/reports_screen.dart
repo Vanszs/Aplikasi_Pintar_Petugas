@@ -4,10 +4,10 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:lottie/lottie.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../models/report.dart';
 import '../providers/report_provider.dart';
 import '../providers/global_refresh_provider.dart';
+import '../providers/jenis_laporan_provider.dart';
 import '../widgets/gradient_background.dart';
 import '../widgets/report_card.dart';
 import '../widgets/smart_connection_status_card.dart';
@@ -28,17 +28,20 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
   String _selectedRw = '';
   String _selectedRt = '';
   String _selectedStatus = '';
+  String _selectedJenisLaporan = '';
   String _sortBy = 'newest'; // 'newest' or 'oldest'
   final TextEditingController _rwController = TextEditingController();
   final TextEditingController _rtController = TextEditingController();
   bool _showFilters = false;
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
-    _loadSavedFilters(); // Load saved filters on init
+    // Load jenis laporan for filtering
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(reportProvider.notifier).loadAllReports();
+      ref.read(jenisLaporanProvider.notifier).loadJenisLaporan();
     });
   }
 
@@ -46,6 +49,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
   void dispose() {
     _rwController.dispose();
     _rtController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -73,29 +77,47 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     return filteredReports.sublist(startIndex, endIndex);
   }
 
-  // Apply filters and sorting
+  // Apply filters and sorting with improved regex for RW/RT and jenis laporan filter
   List<Report> _applyFiltersAndSort(List<Report> reports) {
-    List<Report> filtered = List.from(reports);
+    var filtered = reports.where((report) {
+      // RW filter (case insensitive and flexible matching)
+      bool rwMatch = true;
+      if (_selectedRw.isNotEmpty) {
+        final rwPattern = RegExp(r'rw\s*' + RegExp.escape(_selectedRw.trim()), caseSensitive: false);
+        rwMatch = rwPattern.hasMatch(report.address);
+      }
 
-    // Filter by RW (regex to handle different formats: RW1, RW 1, RW 01, etc.)
-    if (_selectedRw.isNotEmpty) {
-      final rwRegex = RegExp(r'RW\s*0*' + _selectedRw.replaceAll(RegExp(r'[^\d]'), '') + r'\b', caseSensitive: false);
-      filtered = filtered.where((report) => rwRegex.hasMatch(report.address)).toList();
-    }
+      // RT filter (case insensitive and flexible matching)
+      bool rtMatch = true;
+      if (_selectedRt.isNotEmpty) {
+        final rtPattern = RegExp(r'rt\s*' + RegExp.escape(_selectedRt.trim()), caseSensitive: false);
+        rtMatch = rtPattern.hasMatch(report.address);
+      }
 
-    // Filter by RT (regex to handle different formats: RT1, RT 1, RT 01, etc.)
-    if (_selectedRt.isNotEmpty) {
-      final rtRegex = RegExp(r'RT\s*0*' + _selectedRt.replaceAll(RegExp(r'[^\d]'), '') + r'\b', caseSensitive: false);
-      filtered = filtered.where((report) => rtRegex.hasMatch(report.address)).toList();
-    }
+      // Status filter
+      bool statusMatch = true;
+      if (_selectedStatus.isNotEmpty && _selectedStatus != 'semua') {
+        final normalizedStatus = _selectedStatus.toLowerCase();
+        final reportStatus = report.status.toLowerCase();
+        statusMatch = reportStatus == normalizedStatus ||
+                     (normalizedStatus == 'menunggu' && reportStatus == 'pending') ||
+                     (normalizedStatus == 'diproses' && reportStatus == 'processing') ||
+                     (normalizedStatus == 'selesai' && reportStatus == 'completed') ||
+                     (normalizedStatus == 'ditolak' && reportStatus == 'rejected');
+      }
 
-    // Filter by status
-    if (_selectedStatus.isNotEmpty && _selectedStatus != 'semua') {
-      filtered = filtered.where((report) => 
-        report.status.toLowerCase() == _selectedStatus.toLowerCase()).toList();
-    }
+      // Jenis Laporan filter (case insensitive with "lainnya" category)
+      bool jenisMatch = true;
+      if (_selectedJenisLaporan.isNotEmpty && _selectedJenisLaporan != 'semua') {
+        final jenisLaporanNotifier = ref.read(jenisLaporanProvider.notifier);
+        final reportJenisCategory = jenisLaporanNotifier.categorizeJenisLaporan(report.jenisLaporan);
+        jenisMatch = reportJenisCategory == _selectedJenisLaporan.toLowerCase();
+      }
 
-    // Apply sorting (using UTC+7 time)
+      return rwMatch && rtMatch && statusMatch && jenisMatch;
+    }).toList();
+
+    // Apply sorting
     if (_sortBy == 'newest') {
       filtered.sort((a, b) => b.createdAt.compareTo(a.createdAt));
     } else {
@@ -105,37 +127,23 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     return filtered;
   }
 
-  // Save filter preferences
-  Future<void> _saveFilters() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('reports_filter_rw', _selectedRw);
-    await prefs.setString('reports_filter_rt', _selectedRt);
-    await prefs.setString('reports_filter_status', _selectedStatus);
-    await prefs.setString('reports_filter_sort', _sortBy);
-  }
-
-  // Load saved filter preferences
-  Future<void> _loadSavedFilters() async {
-    final prefs = await SharedPreferences.getInstance();
+  // Reset all filters (no more saving to SharedPreferences)
+  void _resetFilters() {
     setState(() {
-      _selectedRw = prefs.getString('reports_filter_rw') ?? '';
-      _selectedRt = prefs.getString('reports_filter_rt') ?? '';
-      _selectedStatus = prefs.getString('reports_filter_status') ?? '';
-      _sortBy = prefs.getString('reports_filter_sort') ?? 'newest';
+      _selectedRw = '';
+      _selectedRt = '';
+      _selectedStatus = '';
+      _selectedJenisLaporan = '';
+      _sortBy = 'newest';
+      _currentPage = 0;
       
-      // Update controllers
-      _rwController.text = _selectedRw;
-      _rtController.text = _selectedRt;
+      // Clear controllers (no longer needed for dropdowns but keep for compatibility)
+      _rwController.clear();
+      _rtController.clear();
     });
-  }
-
-  // Clear saved filters
-  Future<void> _clearSavedFilters() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('reports_filter_rw');
-    await prefs.remove('reports_filter_rt');
-    await prefs.remove('reports_filter_status');
-    await prefs.remove('reports_filter_sort');
+    
+    // Auto scroll to top when filters are reset
+    _scrollToTop();
   }
 
   // Calculate total pages
@@ -150,6 +158,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
       setState(() {
         _currentPage++;
       });
+      // Auto scroll to top
+      _scrollToTop();
     }
   }
 
@@ -159,6 +169,18 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
       setState(() {
         _currentPage--;
       });
+      // Auto scroll to top
+      _scrollToTop();
+    }
+  }
+
+  void _scrollToTop() {
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        0,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
     }
   }
 
@@ -400,14 +422,27 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
   }
 
   Widget _buildReportList(List<Report> reports) {
-    final totalPages = _getTotalPages(reports);
-    final paginatedReports = _getPaginatedReports(reports);
+    // Apply filters first to get the actual filtered count
+    final filteredReports = _applyFiltersAndSort(reports);
+    final totalPages = _getTotalPages(filteredReports);
+    final paginatedReports = _getPaginatedReports(filteredReports);
+
+    // Check if any filter is applied
+    final hasFilters = _selectedStatus.isNotEmpty || 
+                      _selectedJenisLaporan.isNotEmpty || 
+                      _selectedRw.isNotEmpty || 
+                      _selectedRt.isNotEmpty ||
+                      _sortBy != 'newest';
 
     return Column(
       children: [
+        // Total count header - use appropriate count
+        _buildTotalCountHeader(filteredReports.length, hasFilters),
+        
         Expanded(
           child: ListView.builder(
-            padding: const EdgeInsets.all(20),
+            controller: _scrollController, // Tambahkan scroll controller
+            padding: const EdgeInsets.symmetric(horizontal: 20),
             itemCount: paginatedReports.length,
             itemBuilder: (context, index) {
               final report = paginatedReports[index];
@@ -419,10 +454,109 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
           ),
         ),
         // Add pagination controls
-        if (reports.length > _itemsPerPage)
+        if (filteredReports.length > _itemsPerPage)
           _buildPaginationControls(totalPages),
       ],
     );
+  }
+
+  Widget _buildTotalCountHeader(int filteredCount, bool hasFilters) {
+    final reportState = ref.watch(reportProvider);
+    final globalStats = reportState.globalStats;
+    
+    // Use globalStats total if no filters are applied, otherwise use filtered count
+    final displayCount = !hasFilters && globalStats != null && globalStats['total'] != null
+        ? globalStats['total']
+        : filteredCount;
+    
+    final displayText = hasFilters 
+        ? '$filteredCount laporan (terfilter)'
+        : '$displayCount laporan';
+        
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF6366F1).withAlpha(51),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.white.withAlpha(51),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(
+              Icons.assignment_outlined,
+              color: Colors.white,
+              size: 24,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Total Laporan',
+                  style: GoogleFonts.inter(
+                    fontSize: 14,
+                    color: Colors.white.withAlpha(204),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  displayText,
+                  style: GoogleFonts.inter(
+                    fontSize: 20,
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.white.withAlpha(51),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              _getFilterStatusText(),
+              style: GoogleFonts.inter(
+                fontSize: 12,
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    ).animate().fadeIn(duration: 300.ms).slideY(begin: -0.2);
+  }
+
+  String _getFilterStatusText() {
+    bool hasFilters = _selectedRw.isNotEmpty || 
+                     _selectedRt.isNotEmpty || 
+                     (_selectedStatus.isNotEmpty && _selectedStatus != 'semua') || 
+                     (_selectedJenisLaporan.isNotEmpty && _selectedJenisLaporan != 'semua');
+    
+    return hasFilters ? 'Terfilter' : 'Semua';
   }
 
   Widget _buildPaginationControls(int totalPages) {
@@ -527,7 +661,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // RW and RT filters
+          // RW and RT filters - Modern Dropdown Style
           Row(
             children: [
               Expanded(
@@ -544,27 +678,31 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                     ),
                     const SizedBox(height: 4),
                     Container(
-                      height: 40,
+                      height: 44, // Tinggi yang lebih proporsional
                       decoration: BoxDecoration(
                         color: const Color(0xFFF9FAFB),
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(12),
                         border: Border.all(color: const Color(0xFFE5E7EB)),
                       ),
-                      child: TextField(
-                        controller: _rwController,
+                      child: DropdownButtonFormField<String>(
+                        value: _selectedRw.isEmpty ? '' : _selectedRw,
                         onChanged: (value) {
                           setState(() {
-                            _selectedRw = value;
-                            _currentPage = 0; // Reset to first page
+                            _selectedRw = value ?? '';
+                            _currentPage = 0;
                           });
                         },
                         decoration: const InputDecoration(
-                          hintText: 'Contoh: 1, 01',
+                          hintText: 'Pilih RW',
                           hintStyle: TextStyle(fontSize: 12, color: Color(0xFF9CA3AF)),
                           border: InputBorder.none,
-                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12), // Padding yang seimbang
                         ),
-                        style: GoogleFonts.inter(fontSize: 14),
+                        style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF374151)),
+                        isExpanded: true,
+                        isDense: true,
+                        menuMaxHeight: 200,
+                        items: _buildRwDropdownItems(),
                       ),
                     ),
                   ],
@@ -585,30 +723,76 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                     ),
                     const SizedBox(height: 4),
                     Container(
-                      height: 40,
+                      height: 44, // Tinggi yang lebih proporsional
                       decoration: BoxDecoration(
                         color: const Color(0xFFF9FAFB),
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(12),
                         border: Border.all(color: const Color(0xFFE5E7EB)),
                       ),
-                      child: TextField(
-                        controller: _rtController,
+                      child: DropdownButtonFormField<String>(
+                        value: _selectedRt.isEmpty ? '' : _selectedRt,
                         onChanged: (value) {
                           setState(() {
-                            _selectedRt = value;
-                            _currentPage = 0; // Reset to first page
+                            _selectedRt = value ?? '';
+                            _currentPage = 0;
                           });
                         },
                         decoration: const InputDecoration(
-                          hintText: 'Contoh: 1, 01',
+                          hintText: 'Pilih RT',
                           hintStyle: TextStyle(fontSize: 12, color: Color(0xFF9CA3AF)),
                           border: InputBorder.none,
-                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12), // Padding yang seimbang
                         ),
-                        style: GoogleFonts.inter(fontSize: 14),
+                        style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF374151)),
+                        isExpanded: true,
+                        isDense: true,
+                        menuMaxHeight: 200,
+                        items: _buildRtDropdownItems(),
                       ),
                     ),
                   ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          // Jenis Laporan filter
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Jenis Laporan',
+                style: GoogleFonts.inter(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF374151),
+                ),
+              ),
+              const SizedBox(height: 4),
+              Container(
+                height: 44, // Tinggi yang lebih proporsional
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF9FAFB),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFE5E7EB)),
+                ),
+                child: DropdownButtonFormField<String>(
+                  value: _selectedJenisLaporan.isEmpty ? 'semua' : _selectedJenisLaporan,
+                  onChanged: (value) {
+                    setState(() {
+                      _selectedJenisLaporan = value ?? '';
+                      _currentPage = 0;
+                    });
+                  },
+                  decoration: const InputDecoration(
+                    border: InputBorder.none,
+                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12), // Padding yang seimbang
+                  ),
+                  style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF374151)),
+                  isExpanded: true,
+                  isDense: true,
+                  menuMaxHeight: 200, // Limit dropdown height for scrolling
+                  items: _buildJenisLaporanDropdownItems(),
                 ),
               ),
             ],
@@ -631,10 +815,10 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                     ),
                     const SizedBox(height: 4),
                     Container(
-                      height: 40,
+                      height: 44, // Tinggi yang lebih proporsional
                       decoration: BoxDecoration(
                         color: const Color(0xFFF9FAFB),
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(12),
                         border: Border.all(color: const Color(0xFFE5E7EB)),
                       ),
                       child: DropdownButtonFormField<String>(
@@ -647,9 +831,11 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                         },
                         decoration: const InputDecoration(
                           border: InputBorder.none,
-                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12), // Padding yang seimbang
                         ),
-                        style: GoogleFonts.inter(fontSize: 14, color: const Color(0xFF374151)),
+                        style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF374151)),
+                        isExpanded: true,
+                        isDense: true,
                         items: [
                           DropdownMenuItem(value: 'semua', child: Text('Semua Status', style: GoogleFonts.inter(fontSize: 12))),
                           DropdownMenuItem(value: 'menunggu', child: Text('Menunggu', style: GoogleFonts.inter(fontSize: 12))),
@@ -678,10 +864,10 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                     ),
                     const SizedBox(height: 4),
                     Container(
-                      height: 40,
+                      height: 44, // Tinggi yang lebih proporsional
                       decoration: BoxDecoration(
                         color: const Color(0xFFF9FAFB),
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(12),
                         border: Border.all(color: const Color(0xFFE5E7EB)),
                       ),
                       child: DropdownButtonFormField<String>(
@@ -694,9 +880,11 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                         },
                         decoration: const InputDecoration(
                           border: InputBorder.none,
-                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12), // Padding yang seimbang
                         ),
-                        style: GoogleFonts.inter(fontSize: 14, color: const Color(0xFF374151)),
+                        style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF374151)),
+                        isExpanded: true,
+                        isDense: true,
                         items: [
                           DropdownMenuItem(value: 'newest', child: Text('Terbaru', style: GoogleFonts.inter(fontSize: 12))),
                           DropdownMenuItem(value: 'oldest', child: Text('Terlama', style: GoogleFonts.inter(fontSize: 12))),
@@ -709,65 +897,31 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
             ],
           ),
           const SizedBox(height: 12),
-          // Action buttons - Clear filters and Save
+          // Action button - Reset filters only (no save feature)
           Row(
             children: [
-              TextButton(
-                onPressed: () async {
-                  await _clearSavedFilters();
-                  setState(() {
-                    _selectedRw = '';
-                    _selectedRt = '';
-                    _selectedStatus = '';
-                    _sortBy = 'newest';
-                    _rwController.clear();
-                    _rtController.clear();
-                    _currentPage = 0;
-                  });
-                },
-                style: TextButton.styleFrom(
-                  foregroundColor: const Color(0xFF6366F1),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                ),
-                child: Text(
-                  'Hapus Filter',
-                  style: GoogleFonts.inter(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-              const Spacer(),
-              ElevatedButton(
-                onPressed: () async {
-                  await _saveFilters();
-                  setState(() {
-                    _showFilters = false; // Close filter popup
-                  });
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        'Filter berhasil disimpan',
-                        style: GoogleFonts.inter(color: Colors.white),
-                      ),
-                      backgroundColor: Colors.green,
-                      behavior: SnackBarBehavior.floating,
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: () {
+                    _resetFilters();
+                    setState(() {
+                      _showFilters = false; // Close filter popup
+                    });
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF6366F1),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                  );
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF6366F1),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
                   ),
-                ),
-                child: Text(
-                  'Simpan',
-                  style: GoogleFonts.inter(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
+                  child: Text(
+                    'Reset Filter',
+                    style: GoogleFonts.inter(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ),
@@ -776,6 +930,77 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
         ],
       ),
     ).animate().slideY(begin: -0.3).fadeIn();
+  }
+
+  // Build dropdown items for jenis laporan filter
+  List<DropdownMenuItem<String>> _buildJenisLaporanDropdownItems() {
+    final jenisLaporanState = ref.watch(jenisLaporanProvider);
+    
+    List<DropdownMenuItem<String>> items = [
+      DropdownMenuItem(
+        value: 'semua',
+        child: Text('Semua Jenis', style: GoogleFonts.inter(fontSize: 12)),
+      ),
+    ];
+    
+    // Add jenis laporan from backend
+    for (final jenis in jenisLaporanState.jenisLaporanList) {
+      items.add(DropdownMenuItem(
+        value: jenis.nama.toLowerCase(),
+        child: Text(
+          jenis.nama[0].toUpperCase() + jenis.nama.substring(1),
+          style: GoogleFonts.inter(fontSize: 12),
+        ),
+      ));
+    }
+    
+    // Always add "Lainnya" at the end
+    items.add(DropdownMenuItem(
+      value: 'lainnya',
+      child: Text('Lainnya', style: GoogleFonts.inter(fontSize: 12)),
+    ));
+    
+    return items;
+  }
+
+  // Build dropdown items for RW filter (14 RW total)
+  List<DropdownMenuItem<String>> _buildRwDropdownItems() {
+    List<DropdownMenuItem<String>> items = [
+      DropdownMenuItem(
+        value: '',
+        child: Text('Semua RW', style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF9CA3AF))),
+      ),
+    ];
+    
+    for (int i = 1; i <= 14; i++) {
+      final rw = i.toString().padLeft(2, '0'); // Format with leading zero
+      items.add(DropdownMenuItem(
+        value: rw,
+        child: Text('RW $rw', style: GoogleFonts.inter(fontSize: 12)),
+      ));
+    }
+    
+    return items;
+  }
+
+  // Build dropdown items for RT filter (10 RT total)
+  List<DropdownMenuItem<String>> _buildRtDropdownItems() {
+    List<DropdownMenuItem<String>> items = [
+      DropdownMenuItem(
+        value: '',
+        child: Text('Semua RT', style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF9CA3AF))),
+      ),
+    ];
+    
+    for (int i = 1; i <= 10; i++) {
+      final rt = i.toString().padLeft(2, '0'); // Format with leading zero
+      items.add(DropdownMenuItem(
+        value: rt,
+        child: Text('RT $rt', style: GoogleFonts.inter(fontSize: 12)),
+      ));
+    }
+    
+    return items;
   }
 
 }

@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../providers/report_provider.dart';
 import '../providers/auth_provider.dart';
+import '../providers/jenis_laporan_provider.dart';
 import '../widgets/gradient_background.dart';
 
 class OfficerReportFormScreen extends ConsumerStatefulWidget {
@@ -24,13 +25,36 @@ class _OfficerReportFormScreenState extends ConsumerState<OfficerReportFormScree
   
   String _selectedJenisLaporan = 'kemalingan';
   String _selectedRW = '01';
-  final List<String> _jenisLaporanOptions = ['kemalingan', 'kebakaran', 'tawuran', 'lainnya'];
+  List<String> _jenisLaporanOptions = ['kemalingan', 'kebakaran', 'tawuran', 'lainnya'];
   // Format dengan awalan nol untuk angka 1-9
   final List<String> _rwOptions = List.generate(14, (index) => index < 9 ? '0${index + 1}' : '${index + 1}');
   
   bool _isSubmitting = false;
   String? _errorMessage;
   bool _isSirine = false;
+  
+  @override
+  void initState() {
+    super.initState();
+    // Load jenis laporan from backend
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadJenisLaporan();
+    });
+  }
+  
+  Future<void> _loadJenisLaporan() async {
+    await ref.read(jenisLaporanProvider.notifier).loadJenisLaporan();
+    final jenisLaporanState = ref.read(jenisLaporanProvider);
+    if (jenisLaporanState.jenisLaporanList.isNotEmpty) {
+      setState(() {
+        _jenisLaporanOptions = ref.read(jenisLaporanProvider.notifier).getJenisLaporanOptions();
+        // Set default to first option if current selection is not available
+        if (!_jenisLaporanOptions.contains(_selectedJenisLaporan)) {
+          _selectedJenisLaporan = _jenisLaporanOptions.first;
+        }
+      });
+    }
+  }
   
   @override
   void dispose() {

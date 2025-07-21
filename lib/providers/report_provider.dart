@@ -662,7 +662,8 @@ class ReportNotifier extends StateNotifier<ReportState> {
       final result = await _apiService.updateReportStatus(reportId, newStatus);
       
       if (result['success']) {
-        // Update in state
+        // Clear any previous error and update in state
+        state = state.copyWith(errorMessage: null);
         _updateReportStatus(reportId, newStatus, result['report']);
         return true;
       } else {
@@ -830,6 +831,11 @@ class ReportNotifier extends StateNotifier<ReportState> {
   void clearSelectedReport() {
     state = state.copyWith(selectedReport: null, isLoadingDetail: false, errorMessage: null);
     developer.log('Cleared selected report', name: 'ReportProvider');
+  }
+
+  // Method to clear error message
+  void clearErrorMessage() {
+    state = state.copyWith(errorMessage: null);
   }
 }
 
