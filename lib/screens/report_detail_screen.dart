@@ -287,27 +287,83 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
                           ),
                         ),
                         
-                        // Content
+                        // Enhanced content section with better spacing
                         Padding(
-                          padding: const EdgeInsets.all(24),
+                          padding: const EdgeInsets.fromLTRB(28, 32, 28, 28),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                'Pilih Status Baru:',
-                                style: GoogleFonts.inter(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                  color: const Color(0xFF1F2937),
+                              // Informational text with better spacing
+                              Container(
+                                padding: const EdgeInsets.all(20),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF6366F1).withValues(alpha: 0.05),
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(
+                                    color: const Color(0xFF6366F1).withValues(alpha: 0.1),
+                                    width: 1,
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(8),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF6366F1).withValues(alpha: 0.1),
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: const Icon(
+                                        Icons.info_outline_rounded,
+                                        color: Color(0xFF6366F1),
+                                        size: 20,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 16),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'Perubahan Status',
+                                            style: GoogleFonts.inter(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w600,
+                                              color: const Color(0xFF1E293B),
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            'Pilih status baru untuk laporan ini. Perubahan akan tersimpan secara otomatis.',
+                                            style: GoogleFonts.inter(
+                                              fontSize: 13,
+                                              color: const Color(0xFF64748B),
+                                              height: 1.4,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
-                              const SizedBox(height: 16),
                               
-                              // Status options with modern design
+                              const SizedBox(height: 24),
+                              
+                              // Status options with enhanced design
                               Container(
                                 decoration: BoxDecoration(
                                   borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(color: const Color(0xFFE5E7EB)),
+                                  border: Border.all(
+                                    color: const Color(0xFFE2E8F0),
+                                    width: 1.5,
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.grey.withValues(alpha: 0.05),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
                                 ),
                                 child: Column(
                                   children: statusOptions.asMap().entries.map((entry) {
@@ -328,26 +384,29 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
                                             });
                                           },
                                           borderRadius: BorderRadius.only(
-                                            topLeft: isFirst ? const Radius.circular(16) : Radius.zero,
-                                            topRight: isFirst ? const Radius.circular(16) : Radius.zero,
-                                            bottomLeft: isLast ? const Radius.circular(16) : Radius.zero,
-                                            bottomRight: isLast ? const Radius.circular(16) : Radius.zero,
+                                            topLeft: isFirst ? const Radius.circular(14) : Radius.zero,
+                                            topRight: isFirst ? const Radius.circular(14) : Radius.zero,
+                                            bottomLeft: isLast ? const Radius.circular(14) : Radius.zero,
+                                            bottomRight: isLast ? const Radius.circular(14) : Radius.zero,
                                           ),
                                           child: Container(
-                                            padding: const EdgeInsets.all(16),
+                                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
                                             decoration: BoxDecoration(
                                               color: isSelected 
-                                                  ? (option['color'] as Color).withAlpha(25)
-                                                  : Colors.transparent,
+                                                  ? (option['color'] as Color).withValues(alpha: 0.08)
+                                                  : Colors.white,
                                               border: Border(
                                                 bottom: isLast 
                                                     ? BorderSide.none 
-                                                    : BorderSide(color: const Color(0xFFE5E7EB)),
+                                                    : BorderSide(
+                                                        color: const Color(0xFFF1F5F9),
+                                                        width: 1,
+                                                      ),
                                               ),
                                             ),
                                             child: Row(
                                               children: [
-                                                // Custom radio button with icon
+                                                // Enhanced custom radio button
                                                 AnimatedContainer(
                                                   duration: const Duration(milliseconds: 200),
                                                   width: 24,
@@ -360,36 +419,47 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
                                                     border: Border.all(
                                                       color: isSelected 
                                                           ? (option['color'] as Color)
-                                                          : const Color(0xFFD1D5DB),
+                                                          : const Color(0xFFCBD5E1),
                                                       width: 2,
                                                     ),
+                                                    boxShadow: isSelected ? [
+                                                      BoxShadow(
+                                                        color: (option['color'] as Color).withValues(alpha: 0.3),
+                                                        blurRadius: 6,
+                                                        offset: const Offset(0, 2),
+                                                      ),
+                                                    ] : null,
                                                   ),
                                                   child: isSelected
                                                       ? const Icon(
-                                                          Icons.check,
+                                                          Icons.check_rounded,
                                                           size: 14,
                                                           color: Colors.white,
                                                         )
                                                       : null,
                                                 ),
-                                                const SizedBox(width: 16),
+                                                const SizedBox(width: 18),
                                                 
-                                                // Status icon
+                                                // Enhanced status icon
                                                 Container(
-                                                  padding: const EdgeInsets.all(8),
+                                                  padding: const EdgeInsets.all(10),
                                                   decoration: BoxDecoration(
-                                                    color: (option['color'] as Color).withAlpha(25),
-                                                    borderRadius: BorderRadius.circular(10),
+                                                    color: (option['color'] as Color).withValues(alpha: 0.1),
+                                                    borderRadius: BorderRadius.circular(12),
+                                                    border: Border.all(
+                                                      color: (option['color'] as Color).withValues(alpha: 0.2),
+                                                      width: 1,
+                                                    ),
                                                   ),
                                                   child: Icon(
                                                     option['icon'] as IconData,
-                                                    size: 20,
+                                                    size: 18,
                                                     color: option['color'] as Color,
                                                   ),
                                                 ),
-                                                const SizedBox(width: 16),
+                                                const SizedBox(width: 18),
                                                 
-                                                // Status text
+                                                // Enhanced status text
                                                 Expanded(
                                                   child: Text(
                                                     option['display'] as String,
@@ -403,13 +473,20 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
                                                   ),
                                                 ),
                                                 
-                                                // Selection indicator
+                                                // Enhanced selection indicator
                                                 if (isSelected)
                                                   Container(
                                                     width: 4,
-                                                    height: 24,
+                                                    height: 28,
                                                     decoration: BoxDecoration(
-                                                      color: option['color'] as Color,
+                                                      gradient: LinearGradient(
+                                                        begin: Alignment.topCenter,
+                                                        end: Alignment.bottomCenter,
+                                                        colors: [
+                                                          option['color'] as Color,
+                                                          (option['color'] as Color).withValues(alpha: 0.7),
+                                                        ],
+                                                      ),
                                                       borderRadius: BorderRadius.circular(2),
                                                     ),
                                                   ),
@@ -426,66 +503,157 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
                           ),
                         ),
                         
-                        // Action buttons
+                        // Action buttons with enhanced padding and UX
                         Container(
-                          padding: const EdgeInsets.all(24),
+                          padding: const EdgeInsets.fromLTRB(28, 24, 28, 32),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFF9FAFB),
+                            color: const Color(0xFFF8FAFC),
                             borderRadius: const BorderRadius.only(
                               bottomLeft: Radius.circular(24),
                               bottomRight: Radius.circular(24),
                             ),
-                          ),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: TextButton(
-                                  onPressed: () => Navigator.of(context).pop(),
-                                  style: TextButton.styleFrom(
-                                    padding: const EdgeInsets.symmetric(vertical: 16),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                      side: const BorderSide(color: Color(0xFFE5E7EB)),
-                                    ),
-                                  ),
-                                  child: Text(
-                                    'Batal',
-                                    style: GoogleFonts.inter(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w600,
-                                      color: const Color(0xFF6B7280),
-                                    ),
-                                  ),
-                                ),
+                            border: Border(
+                              top: BorderSide(
+                                color: const Color(0xFFE2E8F0),
+                                width: 1,
                               ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: ElevatedButton(
-                                  onPressed: _selectedStatus != null && _selectedStatus != report.status
-                                      ? () {
-                                          Navigator.of(context).pop();
-                                          _updateReportStatus(report.id, _selectedStatus!);
-                                        }
-                                      : null,
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFF6366F1),
-                                    foregroundColor: Colors.white,
-                                    disabledBackgroundColor: const Color(0xFFE5E7EB),
-                                    disabledForegroundColor: const Color(0xFF9CA3AF),
-                                    elevation: 0,
-                                    padding: const EdgeInsets.symmetric(vertical: 16),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: Column(
+                            children: [
+                              // Enhanced action buttons
+                              Row(
+                                children: [
+                                  // Cancel button with red background
+                                  Expanded(
+                                    child: Container(
+                                      height: 54,
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(14),
+                                        gradient: LinearGradient(
+                                          begin: Alignment.topLeft,
+                                          end: Alignment.bottomRight,
+                                          colors: [
+                                            const Color(0xFFEF4444),
+                                            const Color(0xFFDC2626),
+                                          ],
+                                        ),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: const Color(0xFFEF4444).withValues(alpha: 0.3),
+                                            blurRadius: 12,
+                                            offset: const Offset(0, 4),
+                                          ),
+                                        ],
+                                      ),
+                                      child: Material(
+                                        color: Colors.transparent,
+                                        child: InkWell(
+                                          onTap: () => Navigator.of(context).pop(),
+                                          borderRadius: BorderRadius.circular(14),
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                                            child: Row(
+                                              mainAxisAlignment: MainAxisAlignment.center,
+                                              children: [
+                                                const Icon(
+                                                  Icons.close_rounded,
+                                                  size: 18,
+                                                  color: Colors.white,
+                                                ),
+                                                const SizedBox(width: 10),
+                                                Text(
+                                                  'Batal',
+                                                  style: GoogleFonts.inter(
+                                                    fontSize: 16,
+                                                    fontWeight: FontWeight.w600,
+                                                    color: Colors.white,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      ),
                                     ),
                                   ),
-                                  child: Text(
-                                    'Simpan Perubahan',
-                                    style: GoogleFonts.inter(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w600,
+                                  const SizedBox(width: 16),
+                                  // Save button with enhanced design
+                                  Expanded(
+                                    child: Container(
+                                      height: 54,
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(14),
+                                        gradient: _selectedStatus != null && _selectedStatus != report.status
+                                            ? LinearGradient(
+                                                begin: Alignment.topLeft,
+                                                end: Alignment.bottomRight,
+                                                colors: [
+                                                  const Color(0xFF6366F1),
+                                                  const Color(0xFF8B5CF6),
+                                                ],
+                                              )
+                                            : null,
+                                        color: _selectedStatus == null || _selectedStatus == report.status
+                                            ? const Color(0xFFE2E8F0)
+                                            : null,
+                                        boxShadow: _selectedStatus != null && _selectedStatus != report.status
+                                            ? [
+                                                BoxShadow(
+                                                  color: const Color(0xFF6366F1).withValues(alpha: 0.3),
+                                                  blurRadius: 12,
+                                                  offset: const Offset(0, 4),
+                                                ),
+                                              ]
+                                            : [
+                                                BoxShadow(
+                                                  color: Colors.grey.withValues(alpha: 0.08),
+                                                  blurRadius: 8,
+                                                  offset: const Offset(0, 2),
+                                                ),
+                                              ],
+                                      ),
+                                      child: Material(
+                                        color: Colors.transparent,
+                                        child: InkWell(
+                                          onTap: _selectedStatus != null && _selectedStatus != report.status
+                                              ? () {
+                                                  Navigator.of(context).pop();
+                                                  _updateReportStatus(report.id, _selectedStatus!);
+                                                }
+                                              : null,
+                                          borderRadius: BorderRadius.circular(14),
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                                            child: Row(
+                                              mainAxisAlignment: MainAxisAlignment.center,
+                                              children: [
+                                                Icon(
+                                                  Icons.save_rounded,
+                                                  size: 18,
+                                                  color: _selectedStatus != null && _selectedStatus != report.status
+                                                      ? Colors.white
+                                                      : const Color(0xFF94A3B8),
+                                                ),
+                                                const SizedBox(width: 10),
+                                                Text(
+                                                  'Simpan',
+                                                  style: GoogleFonts.inter(
+                                                    fontSize: 16,
+                                                    fontWeight: FontWeight.w600,
+                                                    color: _selectedStatus != null && _selectedStatus != report.status
+                                                        ? Colors.white
+                                                        : const Color(0xFF94A3B8),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      ),
                                     ),
                                   ),
-                                ),
+                                ],
                               ),
                             ],
                           ),
