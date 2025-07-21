@@ -1013,7 +1013,7 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
                 _buildDetailRow(
                   icon: Icons.person_outline_rounded,
                   label: 'Nama Pelapor',
-                  value: report.userName ?? 'Tidak diketahui',
+                  value: report.userName ?? 'Admin/Petugas',
                   iconColor: const Color(0xFF3B82F6),
                 ),
                 const SizedBox(height: 16),

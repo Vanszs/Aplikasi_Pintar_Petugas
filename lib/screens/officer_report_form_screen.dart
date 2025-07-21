@@ -405,38 +405,8 @@ class _OfficerReportFormScreenState extends ConsumerState<OfficerReportFormScree
               ],
             ),
           ),
-          ...(_jenisLaporanOptions.asMap().entries.map((entry) {
-            final index = entry.key;
-            final option = entry.value;
-            final isLast = index == _jenisLaporanOptions.length - 1;
-            
-            return Container(
-              decoration: BoxDecoration(
-                border: !isLast ? Border(bottom: BorderSide(color: Colors.grey[100]!)) : null,
-              ),
-              child: RadioListTile<String>(
-                title: Text(
-                  option == 'lainnya' ? 'Lainnya' : option[0].toUpperCase() + option.substring(1),
-                  style: GoogleFonts.inter(
-                    fontSize: 15,
-                    fontWeight: _selectedJenisLaporan == option ? FontWeight.w600 : FontWeight.normal,
-                    color: _selectedJenisLaporan == option ? const Color(0xFF6366F1) : const Color(0xFF1E293B),
-                  ),
-                ),
-                value: option,
-                groupValue: _selectedJenisLaporan,
-                activeColor: const Color(0xFF6366F1),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-                onChanged: (value) {
-                  if (value == null) return;
-                  setState(() {
-                    _selectedJenisLaporan = value;
-                  });
-                  HapticFeedback.selectionClick();
-                },
-              ),
-            );
-          }).toList()),
+          // Check if we need scroll (more than 4 options excluding 'lainnya')
+          _buildJenisLaporanRadioSection(),
           if (_selectedJenisLaporan == 'lainnya')
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
@@ -469,6 +439,490 @@ class _OfficerReportFormScreenState extends ConsumerState<OfficerReportFormScree
         ],
       ),
     );
+  }
+
+  Widget _buildJenisLaporanRadioSection() {
+    // Count options excluding 'lainnya'
+    final nonLainnyaOptions = _jenisLaporanOptions.where((option) => option != 'lainnya').toList();
+    final shouldScroll = nonLainnyaOptions.length > 4;
+    
+    // Build modern radio list tiles with enhanced styling
+    final radioTiles = _jenisLaporanOptions.map((option) {
+      final isSelected = _selectedJenisLaporan == option;
+      
+      return Container(
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        decoration: BoxDecoration(
+          color: isSelected 
+              ? const Color(0xFF6366F1).withValues(alpha: 0.08)
+              : Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected 
+                ? const Color(0xFF6366F1).withValues(alpha: 0.3)
+                : Colors.grey[200]!,
+            width: isSelected ? 2 : 1,
+          ),
+          boxShadow: isSelected ? [
+            BoxShadow(
+              color: const Color(0xFF6366F1).withValues(alpha: 0.1),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ] : [
+            BoxShadow(
+              color: Colors.grey.withValues(alpha: 0.05),
+              blurRadius: 4,
+              offset: const Offset(0, 1),
+            ),
+          ],
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(12),
+            onTap: () {
+              setState(() {
+                _selectedJenisLaporan = option;
+              });
+              HapticFeedback.selectionClick();
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              child: Row(
+                children: [
+                  // Custom radio button
+                  Container(
+                    width: 24,
+                    height: 24,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: isSelected 
+                            ? const Color(0xFF6366F1) 
+                            : Colors.grey[400]!,
+                        width: 2,
+                      ),
+                      color: isSelected 
+                          ? const Color(0xFF6366F1) 
+                          : Colors.transparent,
+                    ),
+                    child: isSelected
+                        ? const Icon(
+                            Icons.check,
+                            size: 14,
+                            color: Colors.white,
+                          )
+                        : null,
+                  ),
+                  const SizedBox(width: 16),
+                  // Text with icon
+                  Expanded(
+                    child: Row(
+                      children: [
+                        // Category icon
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: isSelected 
+                                ? const Color(0xFF6366F1).withValues(alpha: 0.1)
+                                : Colors.grey[100],
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Icon(
+                            _getIconForJenisLaporan(option),
+                            size: 20,
+                            color: isSelected 
+                                ? const Color(0xFF6366F1) 
+                                : Colors.grey[600],
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        // Text
+                        Expanded(
+                          child: Text(
+                            option == 'lainnya' ? 'Lainnya' : _formatJenisLaporanText(option),
+                            style: GoogleFonts.inter(
+                              fontSize: 15,
+                              fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                              color: isSelected 
+                                  ? const Color(0xFF6366F1) 
+                                  : const Color(0xFF1E293B),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Selected indicator
+                  if (isSelected)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF6366F1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        'Dipilih',
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }).toList();
+
+    // If should scroll, wrap with modern visual indicators
+    if (shouldScroll) {
+      return Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withValues(alpha: 0.1),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            // Modern scroll indicator header
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    const Color(0xFF6366F1).withValues(alpha: 0.1),
+                    const Color(0xFF8B5CF6).withValues(alpha: 0.1),
+                  ],
+                ),
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(16),
+                  topRight: Radius.circular(16),
+                ),
+                border: Border(
+                  bottom: BorderSide(
+                    color: const Color(0xFF6366F1).withValues(alpha: 0.2),
+                    width: 1,
+                  ),
+                ),
+              ),
+              child: Row(
+                children: [
+                  // Modern animated icon
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          const Color(0xFF6366F1),
+                          const Color(0xFF8B5CF6),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF6366F1).withValues(alpha: 0.3),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: const Icon(
+                      Icons.swipe_vertical_rounded,
+                      size: 20,
+                      color: Colors.white,
+                    ),
+                  ).animate(onPlay: (controller) => controller.repeat())
+                   .shimmer(duration: 2000.ms, colors: [
+                     Colors.white.withValues(alpha: 0.0),
+                     Colors.white.withValues(alpha: 0.3),
+                     Colors.white.withValues(alpha: 0.0),
+                   ])
+                   .scale(begin: const Offset(1.0, 1.0), end: const Offset(1.05, 1.05), duration: 1000.ms)
+                   .then()
+                   .scale(begin: const Offset(1.05, 1.05), end: const Offset(1.0, 1.0), duration: 1000.ms),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Pilih Jenis Laporan',
+                          style: GoogleFonts.inter(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: const Color(0xFF1E293B),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Scroll untuk melihat semua ${_jenisLaporanOptions.length} opsi yang tersedia',
+                          style: GoogleFonts.inter(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                            color: const Color(0xFF6B7280),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Modern badge
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          const Color(0xFF10B981),
+                          const Color(0xFF059669),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF10B981).withValues(alpha: 0.3),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Text(
+                      '${_jenisLaporanOptions.length}',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Modern scrollable content
+            Container(
+              height: 280,
+              decoration: const BoxDecoration(
+                borderRadius: BorderRadius.only(
+                  bottomLeft: Radius.circular(16),
+                  bottomRight: Radius.circular(16),
+                ),
+              ),
+              child: Stack(
+                children: [
+                  // Main content
+                  Scrollbar(
+                    thumbVisibility: true,
+                    trackVisibility: true,
+                    thickness: 6,
+                    radius: const Radius.circular(3),
+                    child: SingleChildScrollView(
+                      physics: const BouncingScrollPhysics(),
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      child: Column(children: radioTiles),
+                    ),
+                  ),
+                  // Modern top fade
+                  Positioned(
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    child: Container(
+                      height: 40,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.white,
+                            Colors.white.withValues(alpha: 0.8),
+                            Colors.white.withValues(alpha: 0.0),
+                          ],
+                        ),
+                      ),
+                      child: Center(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF6366F1).withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: const Icon(
+                            Icons.keyboard_arrow_up_rounded,
+                            color: Color(0xFF6366F1),
+                            size: 16,
+                          ),
+                        ),
+                      ).animate(onPlay: (controller) => controller.repeat())
+                       .moveY(begin: 2, end: -2, duration: 1500.ms)
+                       .then()
+                       .moveY(begin: -2, end: 2, duration: 1500.ms),
+                    ),
+                  ),
+                  // Modern bottom fade
+                  Positioned(
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    child: Container(
+                      height: 40,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.bottomCenter,
+                          end: Alignment.topCenter,
+                          colors: [
+                            Colors.white,
+                            Colors.white.withValues(alpha: 0.8),
+                            Colors.white.withValues(alpha: 0.0),
+                          ],
+                        ),
+                      ),
+                      child: Center(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF6366F1).withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: const Icon(
+                            Icons.keyboard_arrow_down_rounded,
+                            color: Color(0xFF6366F1),
+                            size: 16,
+                          ),
+                        ),
+                      ).animate(onPlay: (controller) => controller.repeat())
+                       .moveY(begin: -2, end: 2, duration: 1500.ms)
+                       .then()
+                       .moveY(begin: 2, end: -2, duration: 1500.ms),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    } else {
+      // Modern non-scrollable version
+      return Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withValues(alpha: 0.1),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            // Header for non-scrollable
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    const Color(0xFF6366F1).withValues(alpha: 0.1),
+                    const Color(0xFF8B5CF6).withValues(alpha: 0.1),
+                  ],
+                ),
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(16),
+                  topRight: Radius.circular(16),
+                ),
+                border: Border(
+                  bottom: BorderSide(
+                    color: const Color(0xFF6366F1).withValues(alpha: 0.2),
+                    width: 1,
+                  ),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          const Color(0xFF6366F1),
+                          const Color(0xFF8B5CF6),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(
+                      Icons.category_rounded,
+                      size: 20,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Text(
+                      'Pilih Jenis Laporan',
+                      style: GoogleFonts.inter(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: const Color(0xFF1E293B),
+                      ),
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          const Color(0xFF10B981),
+                          const Color(0xFF059669),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      '${_jenisLaporanOptions.length}',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Content
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              child: Column(children: radioTiles),
+            ),
+          ],
+        ),
+      );
+    }
   }
 
   Widget _buildModernAddressSection() {
@@ -856,5 +1310,35 @@ class _OfficerReportFormScreenState extends ConsumerState<OfficerReportFormScree
         ),
       ),
     );
+  }
+
+  // Helper method to get appropriate icon for jenis laporan
+  IconData _getIconForJenisLaporan(String jenisLaporan) {
+    switch (jenisLaporan.toLowerCase()) {
+      case 'kemalingan':
+      case 'pencurian':
+        return Icons.security_rounded;
+      case 'kebakaran':
+        return Icons.local_fire_department_rounded;
+      case 'tawuran':
+      case 'keributan':
+        return Icons.group_rounded;
+      case 'kecelakaan':
+        return Icons.car_crash_rounded;
+      case 'banjir':
+        return Icons.water_damage_rounded;
+      case 'gangguan':
+        return Icons.report_problem_rounded;
+      case 'lainnya':
+        return Icons.more_horiz_rounded;
+      default:
+        return Icons.report_rounded;
+    }
+  }
+
+  // Helper method to format jenis laporan text
+  String _formatJenisLaporanText(String jenisLaporan) {
+    if (jenisLaporan.isEmpty) return jenisLaporan;
+    return jenisLaporan[0].toUpperCase() + jenisLaporan.substring(1);
   }
 }
