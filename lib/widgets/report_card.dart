@@ -110,17 +110,29 @@ class ReportCard extends StatelessWidget {
 
   Widget _buildStatusChip() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      constraints: const BoxConstraints(minWidth: 80), // Set minimum width untuk konsistensi
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6), // Padding yang sama dengan home screen
       decoration: BoxDecoration(
-        color: report.getStatusColor().withOpacity(0.1),
-        borderRadius: BorderRadius.circular(10),
+        color: report.getStatusColor(), // Background solid color seperti home screen
+        borderRadius: BorderRadius.circular(12), // Border radius yang sama
+        boxShadow: [
+          BoxShadow(
+            color: report.getStatusColor().withValues(alpha: 0.3),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
-      child: Text(
-        report.getStatusDisplay(),
-        style: GoogleFonts.inter(
-          fontSize: 10,
-          fontWeight: FontWeight.bold,
-          color: report.getStatusColor(),
+      child: Center( // Center text untuk alignment yang perfect
+        child: Text(
+          report.getStatusDisplay().toUpperCase(), // Uppercase seperti home screen
+          style: GoogleFonts.inter(
+            fontSize: 10,
+            fontWeight: FontWeight.w700, // Font weight yang sama
+            color: Colors.white, // Text putih untuk kontras
+            letterSpacing: 0.5, // Letter spacing yang sama
+          ),
+          textAlign: TextAlign.center, // Pastikan text di center
         ),
       ),
     );

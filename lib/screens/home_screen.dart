@@ -687,25 +687,29 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      constraints: const BoxConstraints(minWidth: 70), // Lebih kecil tapi masih konsisten
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), // Padding lebih kecil
                       decoration: BoxDecoration(
                         color: report.getStatusColor(),
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(10), // Border radius lebih kecil
                         boxShadow: [
                           BoxShadow(
-                            color: report.getStatusColor().withValues(alpha: 0.3),
-                            blurRadius: 4,
-                            offset: const Offset(0, 2),
+                            color: report.getStatusColor().withValues(alpha: 0.25),
+                            blurRadius: 3,
+                            offset: const Offset(0, 1),
                           ),
                         ],
                       ),
-                      child: Text(
-                        report.getStatusDisplay().toUpperCase(),
-                        style: GoogleFonts.inter(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.white,
-                          letterSpacing: 0.5,
+                      child: Center( // Center text untuk alignment yang perfect
+                        child: Text(
+                          report.getStatusDisplay().toUpperCase(),
+                          style: GoogleFonts.inter(
+                            fontSize: 9, // Font size lebih kecil
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                            letterSpacing: 0.3, // Letter spacing lebih kecil
+                          ),
+                          textAlign: TextAlign.center, // Pastikan text di center
                         ),
                       ),
                     ),
