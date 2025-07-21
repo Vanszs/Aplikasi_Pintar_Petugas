@@ -7,6 +7,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:lottie/lottie.dart';
 import 'dart:developer' as developer;
 
+import '../config/app_config.dart';
 import '../main.dart';
 import '../models/report.dart';
 import '../providers/auth_provider.dart';
@@ -274,6 +275,24 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
+                  if (AppConfig.isBetaTesting) ...[
+                    const SizedBox(height: 2),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFBBF24),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        'MODE BETA',
+                        style: GoogleFonts.inter(
+                          fontSize: 9,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),

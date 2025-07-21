@@ -158,10 +158,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
         
         developer.log('Login successful for user: $username', name: 'AuthProvider');
         
-        // Register FCM token after successful login (for admin users only)
-        if (user.isAdmin) {
-          _registerFcmTokenAfterLogin();
-        }
+        // Register FCM token after successful login for all users (admin and petugas)
+        _registerFcmTokenAfterLogin();
         
         return true;
       } else {

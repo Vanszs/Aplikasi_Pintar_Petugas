@@ -1,10 +1,12 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'dart:async';
+
+import '../config/app_config.dart';
 import '../models/report.dart';
 import '../providers/report_provider.dart';
 import '../providers/auth_provider.dart';
@@ -509,6 +511,9 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
     final errorMessage = reportState.errorMessage;
     final isAdmin = authState.user?.isAdmin == true;
     
+    // Check if user can edit report status based on beta testing config and role
+    final canEditStatus = AppConfig.canEditReportStatus(isAdmin, authState.user?.role);
+    
     // Debug logging
     debugPrint('=== ReportDetailScreen build ===');
     debugPrint('ReportDetailScreen build - isLoading: $isLoading');
@@ -517,6 +522,9 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
     debugPrint('ReportDetailScreen build - report: ${report?.id}');
     debugPrint('ReportDetailScreen build - errorMessage: $errorMessage');
     debugPrint('ReportDetailScreen build - isAdmin: $isAdmin');
+    debugPrint('ReportDetailScreen build - userRole: ${authState.user?.role}');
+    debugPrint('ReportDetailScreen build - canEditStatus: $canEditStatus');
+    debugPrint('ReportDetailScreen build - isBetaTesting: ${AppConfig.isBetaTesting}');
     if (report != null) {
       debugPrint('ReportDetailScreen build - jenisLaporan: "${report.jenisLaporan}"');
       debugPrint('ReportDetailScreen build - userName: "${report.userName}"');
@@ -567,12 +575,36 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
                     ),
                   ),
                   const SizedBox(width: 16),
-                  Text(
-                    'Detail Laporan',
-                    style: GoogleFonts.inter(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: const Color(0xFF1E293B),
+                  Expanded(
+                    child: Row(
+                      children: [
+                        Text(
+                          'Detail Laporan',
+                          style: GoogleFonts.inter(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: const Color(0xFF1E293B),
+                          ),
+                        ),
+                        if (AppConfig.isBetaTesting) ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFBBF24),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              'BETA',
+                              style: GoogleFonts.inter(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                   ),
                 ],
@@ -616,7 +648,7 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
                   : errorMessage != null
                       ? _buildErrorState(errorMessage)
                       : report != null
-                          ? _buildReportDetail(report, isAdmin)
+                          ? _buildReportDetail(report, canEditStatus, authState.user?.role)
                           : _buildNoDataState(),
             ),
             
@@ -731,7 +763,7 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
     );
   }
 
-  Widget _buildReportDetail(Report report, bool isAdmin) {
+  Widget _buildReportDetail(Report report, bool canEditStatus, [String? userRole]) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -877,7 +909,7 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
                         valueColor: report.getStatusColor(),
                       ),
                     ),
-                    if (isAdmin) ...[
+                    if (canEditStatus) ...[
                       const SizedBox(width: 8),
                       Material(
                         color: Colors.transparent,
@@ -889,25 +921,31 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
                             decoration: BoxDecoration(
                               color: const Color(0xFF3B82F6).withAlpha(26),
                               borderRadius: BorderRadius.circular(8),
-                              border: Border.all(
-                                color: const Color(0xFF3B82F6).withAlpha(51),
-                                width: 1,
-                              ),
                             ),
-                            child: _isUpdatingStatus
-                                ? const SizedBox(
-                                    width: 16,
-                                    height: 16,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: Color(0xFF3B82F6),
-                                    ),
-                                  )
-                                : const Icon(
-                                    Icons.edit_outlined,
-                                    size: 16,
-                                    color: Color(0xFF3B82F6),
-                                  ),
+                            child: Icon(
+                              Icons.edit_outlined,
+                              color: _isUpdatingStatus ? const Color(0xFF9CA3AF) : const Color(0xFF3B82F6),
+                              size: 18,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ] else if (AppConfig.isBetaTesting) ...[
+                      const SizedBox(width: 8),
+                      Tooltip(
+                        message: userRole == 'petugas' 
+                            ? 'Fitur edit status hanya untuk admin'
+                            : 'Fitur edit status dibatasi dalam mode beta testing',
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF3F4F6),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(
+                            Icons.lock_outline,
+                            color: Color(0xFF9CA3AF),
+                            size: 18,
                           ),
                         ),
                       ),
@@ -1137,7 +1175,7 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
     );
   }
 
-  void _launchWhatsApp(String phone) {
+  void _launchWhatsApp(String phone) async {
     // Format nomor untuk WhatsApp
     String phoneNumber = phone.trim();
     
@@ -1152,7 +1190,9 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
     final whatsappUrl = 'https://wa.me/$phoneNumber';
     final uri = Uri.parse(whatsappUrl);
     
-    launchUrl(uri, mode: LaunchMode.externalApplication).then((success) {
+    try {
+      final success = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      
       if (!success && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -1186,7 +1226,24 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
           ),
         );
       }
-    });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.error_outline, color: Colors.white),
+                const SizedBox(width: 8),
+                Expanded(child: Text('Error: ${e.toString()}')),
+              ],
+            ),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          ),
+        );
+      }
+    }
   }
 
   @override

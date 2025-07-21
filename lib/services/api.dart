@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:developer' as developer;
 import 'package:http/http.dart' as http;
+import '../config/app_config.dart';
 import '../models/report.dart';
 import '../models/user.dart';
 import '../utils/timezone_helper.dart';
@@ -62,8 +63,8 @@ class ApiService {
           };
         }
         
-        // Check if role is "petugas" and reject login
-        if (role == 'petugas') {
+        // Check if role is "petugas" - allow in beta testing mode
+        if (role == 'petugas' && !AppConfig.allowOfficerLogin) {
           return {
             'success': false,
             'message': 'Silakan login ke aplikasi khusus petugas',
