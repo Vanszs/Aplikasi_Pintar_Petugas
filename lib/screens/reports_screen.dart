@@ -427,9 +427,9 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     final totalPages = _getTotalPages(filteredReports);
     final paginatedReports = _getPaginatedReports(filteredReports);
 
-    // Check if any filter is applied
-    final hasFilters = _selectedStatus.isNotEmpty || 
-                      _selectedJenisLaporan.isNotEmpty || 
+    // Check if any filter is applied (more precise logic)
+    final hasFilters = (_selectedStatus.isNotEmpty && _selectedStatus != 'semua') || 
+                      (_selectedJenisLaporan.isNotEmpty && _selectedJenisLaporan != 'semua') || 
                       _selectedRw.isNotEmpty || 
                       _selectedRt.isNotEmpty ||
                       _sortBy != 'newest';
@@ -696,11 +696,12 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                           hintText: 'Pilih RW',
                           hintStyle: TextStyle(fontSize: 12, color: Color(0xFF9CA3AF)),
                           border: InputBorder.none,
-                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12), // Padding yang seimbang
+                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 0), // Remove vertical padding untuk center alignment
                         ),
                         style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF374151)),
                         isExpanded: true,
                         isDense: true,
+                        icon: const Icon(Icons.keyboard_arrow_down, size: 20, color: Color(0xFF9CA3AF)),
                         menuMaxHeight: 200,
                         items: _buildRwDropdownItems(),
                       ),
@@ -741,11 +742,12 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                           hintText: 'Pilih RT',
                           hintStyle: TextStyle(fontSize: 12, color: Color(0xFF9CA3AF)),
                           border: InputBorder.none,
-                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12), // Padding yang seimbang
+                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 0),
                         ),
                         style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF374151)),
                         isExpanded: true,
                         isDense: true,
+                        icon: const Icon(Icons.keyboard_arrow_down, size: 20, color: Color(0xFF9CA3AF)),
                         menuMaxHeight: 200,
                         items: _buildRtDropdownItems(),
                       ),
@@ -786,12 +788,13 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                   },
                   decoration: const InputDecoration(
                     border: InputBorder.none,
-                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12), // Padding yang seimbang
+                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 0),
                   ),
                   style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF374151)),
                   isExpanded: true,
                   isDense: true,
-                  menuMaxHeight: 200, // Limit dropdown height for scrolling
+                  icon: const Icon(Icons.keyboard_arrow_down, size: 20, color: Color(0xFF9CA3AF)),
+                  menuMaxHeight: 200,
                   items: _buildJenisLaporanDropdownItems(),
                 ),
               ),
@@ -831,11 +834,12 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                         },
                         decoration: const InputDecoration(
                           border: InputBorder.none,
-                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12), // Padding yang seimbang
+                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 0),
                         ),
                         style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF374151)),
                         isExpanded: true,
                         isDense: true,
+                        icon: const Icon(Icons.keyboard_arrow_down, size: 20, color: Color(0xFF9CA3AF)),
                         items: [
                           DropdownMenuItem(value: 'semua', child: Text('Semua Status', style: GoogleFonts.inter(fontSize: 12))),
                           DropdownMenuItem(value: 'menunggu', child: Text('Menunggu', style: GoogleFonts.inter(fontSize: 12))),
@@ -880,11 +884,12 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                         },
                         decoration: const InputDecoration(
                           border: InputBorder.none,
-                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12), // Padding yang seimbang
+                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 0),
                         ),
                         style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF374151)),
                         isExpanded: true,
                         isDense: true,
+                        icon: const Icon(Icons.keyboard_arrow_down, size: 20, color: Color(0xFF9CA3AF)),
                         items: [
                           DropdownMenuItem(value: 'newest', child: Text('Terbaru', style: GoogleFonts.inter(fontSize: 12))),
                           DropdownMenuItem(value: 'oldest', child: Text('Terlama', style: GoogleFonts.inter(fontSize: 12))),

@@ -181,178 +181,320 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
 
   void _showStatusUpdateDialog(Report report) {
     final statusOptions = [
-      {'value': 'pending', 'display': 'Menunggu', 'color': const Color(0xFFF59E0B)},
-      {'value': 'processing', 'display': 'Diproses', 'color': const Color(0xFF3B82F6)},
-      {'value': 'completed', 'display': 'Selesai', 'color': const Color(0xFF10B981)},
-      {'value': 'rejected', 'display': 'Ditolak', 'color': const Color(0xFFEF4444)},
+      {'value': 'pending', 'display': 'Menunggu', 'color': const Color(0xFFF59E0B), 'icon': Icons.schedule},
+      {'value': 'processing', 'display': 'Diproses', 'color': const Color(0xFF3B82F6), 'icon': Icons.sync},
+      {'value': 'completed', 'display': 'Selesai', 'color': const Color(0xFF10B981), 'icon': Icons.check_circle},
+      {'value': 'rejected', 'display': 'Ditolak', 'color': const Color(0xFFEF4444), 'icon': Icons.cancel},
     ];
 
     setState(() {
       _selectedStatus = report.status;
     });
 
-    showDialog(
+    showGeneralDialog(
       context: context,
-      builder: (BuildContext context) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return AlertDialog(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-              ),
-              title: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
+      barrierDismissible: true,
+      barrierLabel: '',
+      barrierColor: Colors.black54,
+      transitionDuration: const Duration(milliseconds: 300),
+      pageBuilder: (context, animation, secondaryAnimation) => Container(),
+      transitionBuilder: (context, animation, secondaryAnimation, child) {
+        return SlideTransition(
+          position: Tween<Offset>(
+            begin: const Offset(0, 1),
+            end: Offset.zero,
+          ).animate(CurvedAnimation(
+            parent: animation,
+            curve: Curves.easeOutCubic,
+          )),
+          child: FadeTransition(
+            opacity: animation,
+            child: StatefulBuilder(
+              builder: (context, setDialogState) {
+                return Dialog(
+                  backgroundColor: Colors.transparent,
+                  insetPadding: const EdgeInsets.all(20),
+                  child: Container(
+                    constraints: const BoxConstraints(maxWidth: 400),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF3B82F6).withAlpha(26),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Icon(
-                      Icons.edit_outlined,
-                      color: Color(0xFF3B82F6),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      'Ubah Status',
-                      style: GoogleFonts.inter(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: const Color(0xFF1E293B),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Laporan #${report.id}',
-                    style: GoogleFonts.inter(
-                      fontSize: 14,
-                      color: const Color(0xFF64748B),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Pilih Status Baru:',
-                    style: GoogleFonts.inter(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: const Color(0xFF374151),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFFE5E7EB)),
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(24),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withAlpha(25),
+                          blurRadius: 20,
+                          offset: const Offset(0, 10),
+                        ),
+                      ],
                     ),
                     child: Column(
-                      children: statusOptions.map((option) {
-                        final isSelected = _selectedStatus == option['value'];
-                        return InkWell(
-                          onTap: () {
-                            setDialogState(() {
-                              _selectedStatus = option['value'] as String;
-                            });
-                          },
-                          borderRadius: BorderRadius.circular(12),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                            decoration: BoxDecoration(
-                              color: isSelected 
-                                  ? (option['color'] as Color).withAlpha(26)
-                                  : Colors.transparent,
-                              borderRadius: BorderRadius.circular(12),
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Header with gradient
+                        Container(
+                          padding: const EdgeInsets.all(24),
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
                             ),
-                            child: Row(
-                              children: [
-                                Container(
-                                  width: 20,
-                                  height: 20,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    border: Border.all(
-                                      color: isSelected 
-                                          ? (option['color'] as Color)
-                                          : const Color(0xFFD1D5DB),
-                                      width: 2,
-                                    ),
-                                    color: isSelected 
-                                        ? (option['color'] as Color)
-                                        : Colors.transparent,
-                                  ),
-                                  child: isSelected
-                                      ? const Icon(
-                                          Icons.check,
-                                          size: 12,
-                                          color: Colors.white,
-                                        )
-                                      : null,
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Text(
-                                    option['display'] as String,
-                                    style: GoogleFonts.inter(
-                                      fontSize: 14,
-                                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                                      color: isSelected 
-                                          ? (option['color'] as Color)
-                                          : const Color(0xFF374151),
-                                    ),
-                                  ),
-                                ),
-                              ],
+                            borderRadius: const BorderRadius.only(
+                              topLeft: Radius.circular(24),
+                              topRight: Radius.circular(24),
                             ),
                           ),
-                        );
-                      }).toList(),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withAlpha(51),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: const Icon(
+                                  Icons.edit_outlined,
+                                  color: Colors.white,
+                                  size: 24,
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Ubah Status Laporan',
+                                      style: GoogleFonts.inter(
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                    Text(
+                                      'Laporan #${report.id}',
+                                      style: GoogleFonts.inter(
+                                        fontSize: 14,
+                                        color: Colors.white.withAlpha(204),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        
+                        // Content
+                        Padding(
+                          padding: const EdgeInsets.all(24),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Pilih Status Baru:',
+                                style: GoogleFonts.inter(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  color: const Color(0xFF1F2937),
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              
+                              // Status options with modern design
+                              Container(
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(color: const Color(0xFFE5E7EB)),
+                                ),
+                                child: Column(
+                                  children: statusOptions.asMap().entries.map((entry) {
+                                    final index = entry.key;
+                                    final option = entry.value;
+                                    final isSelected = _selectedStatus == option['value'];
+                                    final isFirst = index == 0;
+                                    final isLast = index == statusOptions.length - 1;
+                                    
+                                    return AnimatedContainer(
+                                      duration: const Duration(milliseconds: 200),
+                                      child: Material(
+                                        color: Colors.transparent,
+                                        child: InkWell(
+                                          onTap: () {
+                                            setDialogState(() {
+                                              _selectedStatus = option['value'] as String;
+                                            });
+                                          },
+                                          borderRadius: BorderRadius.only(
+                                            topLeft: isFirst ? const Radius.circular(16) : Radius.zero,
+                                            topRight: isFirst ? const Radius.circular(16) : Radius.zero,
+                                            bottomLeft: isLast ? const Radius.circular(16) : Radius.zero,
+                                            bottomRight: isLast ? const Radius.circular(16) : Radius.zero,
+                                          ),
+                                          child: Container(
+                                            padding: const EdgeInsets.all(16),
+                                            decoration: BoxDecoration(
+                                              color: isSelected 
+                                                  ? (option['color'] as Color).withAlpha(25)
+                                                  : Colors.transparent,
+                                              border: Border(
+                                                bottom: isLast 
+                                                    ? BorderSide.none 
+                                                    : BorderSide(color: const Color(0xFFE5E7EB)),
+                                              ),
+                                            ),
+                                            child: Row(
+                                              children: [
+                                                // Custom radio button with icon
+                                                AnimatedContainer(
+                                                  duration: const Duration(milliseconds: 200),
+                                                  width: 24,
+                                                  height: 24,
+                                                  decoration: BoxDecoration(
+                                                    shape: BoxShape.circle,
+                                                    color: isSelected 
+                                                        ? (option['color'] as Color)
+                                                        : Colors.transparent,
+                                                    border: Border.all(
+                                                      color: isSelected 
+                                                          ? (option['color'] as Color)
+                                                          : const Color(0xFFD1D5DB),
+                                                      width: 2,
+                                                    ),
+                                                  ),
+                                                  child: isSelected
+                                                      ? const Icon(
+                                                          Icons.check,
+                                                          size: 14,
+                                                          color: Colors.white,
+                                                        )
+                                                      : null,
+                                                ),
+                                                const SizedBox(width: 16),
+                                                
+                                                // Status icon
+                                                Container(
+                                                  padding: const EdgeInsets.all(8),
+                                                  decoration: BoxDecoration(
+                                                    color: (option['color'] as Color).withAlpha(25),
+                                                    borderRadius: BorderRadius.circular(10),
+                                                  ),
+                                                  child: Icon(
+                                                    option['icon'] as IconData,
+                                                    size: 20,
+                                                    color: option['color'] as Color,
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 16),
+                                                
+                                                // Status text
+                                                Expanded(
+                                                  child: Text(
+                                                    option['display'] as String,
+                                                    style: GoogleFonts.inter(
+                                                      fontSize: 16,
+                                                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                                                      color: isSelected 
+                                                          ? (option['color'] as Color)
+                                                          : const Color(0xFF374151),
+                                                    ),
+                                                  ),
+                                                ),
+                                                
+                                                // Selection indicator
+                                                if (isSelected)
+                                                  Container(
+                                                    width: 4,
+                                                    height: 24,
+                                                    decoration: BoxDecoration(
+                                                      color: option['color'] as Color,
+                                                      borderRadius: BorderRadius.circular(2),
+                                                    ),
+                                                  ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    );
+                                  }).toList(),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        
+                        // Action buttons
+                        Container(
+                          padding: const EdgeInsets.all(24),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF9FAFB),
+                            borderRadius: const BorderRadius.only(
+                              bottomLeft: Radius.circular(24),
+                              bottomRight: Radius.circular(24),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: TextButton(
+                                  onPressed: () => Navigator.of(context).pop(),
+                                  style: TextButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(vertical: 16),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      side: const BorderSide(color: Color(0xFFE5E7EB)),
+                                    ),
+                                  ),
+                                  child: Text(
+                                    'Batal',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                      color: const Color(0xFF6B7280),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: ElevatedButton(
+                                  onPressed: _selectedStatus != null && _selectedStatus != report.status
+                                      ? () {
+                                          Navigator.of(context).pop();
+                                          _updateReportStatus(report.id, _selectedStatus!);
+                                        }
+                                      : null,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF6366F1),
+                                    foregroundColor: Colors.white,
+                                    disabledBackgroundColor: const Color(0xFFE5E7EB),
+                                    disabledForegroundColor: const Color(0xFF9CA3AF),
+                                    elevation: 0,
+                                    padding: const EdgeInsets.symmetric(vertical: 16),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                  child: Text(
+                                    'Simpan Perubahan',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: Text(
-                    'Batal',
-                    style: GoogleFonts.inter(
-                      color: const Color(0xFF6B7280),
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-                ElevatedButton(
-                  onPressed: _selectedStatus != null && _selectedStatus != report.status
-                      ? () {
-                          Navigator.of(context).pop();
-                          _updateReportStatus(report.id, _selectedStatus!);
-                        }
-                      : null,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF3B82F6),
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                  ),
-                  child: Text(
-                    'Simpan',
-                    style: GoogleFonts.inter(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ],
-            );
-          },
+                );
+              },
+            ),
+          ),
         );
       },
     );

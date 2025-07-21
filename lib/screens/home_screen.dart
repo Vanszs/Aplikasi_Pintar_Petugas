@@ -34,6 +34,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
     // Add observer for app lifecycle changes
     WidgetsBinding.instance.addObserver(this);
     
+    // Setup real-time listeners for report status updates
+    _setupRealtimeListeners();
+    
     // Jangan update user di initState, hanya refresh laporan/statistik saja
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
@@ -86,7 +89,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
     if (state == AppLifecycleState.resumed) {
       if (mounted) {
         _ensureSocketConnection();
-        ref.read(reportProvider.notifier).retryLoadReports();
+        // Force refresh all data when coming back to home screen
+        _refreshAllData();
       }
     }
   }
@@ -106,6 +110,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
     }
   }
 
+  // Force refresh all home screen data
   Future<void> _refreshAllData() async {
     if (!mounted) return;
     final globalRefresh = ref.read(globalRefreshProvider);
@@ -152,6 +157,31 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
       developer.log('Pre-caching completed', name: 'HomeScreen');
     } catch (e) {
       developer.log('Error in pre-caching report details: $e', name: 'HomeScreen');
+    }
+  }
+
+  // Setup real-time listeners for report updates
+  void _setupRealtimeListeners() {
+    try {
+      final socketService = ref.read(socketServiceProvider);
+      
+      // Listen for any report-related updates
+      socketService.listenForReports((report) {
+        if (mounted) {
+          // Force refresh when any report is updated
+          _refreshAllData();
+        }
+      });
+      
+      // Listen for app resume events that trigger refresh
+      socketService.listenForAppResume(() {
+        if (mounted) {
+          _refreshAllData();
+        }
+      });
+      
+    } catch (e) {
+      debugPrint('Error setting up realtime listeners: $e');
     }
   }
 
