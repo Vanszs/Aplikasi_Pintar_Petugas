@@ -689,18 +689,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: _getStatusColor(report.status),
+                        color: report.getStatusColor(),
                         borderRadius: BorderRadius.circular(12),
                         boxShadow: [
                           BoxShadow(
-                            color: _getStatusColor(report.status).withValues(alpha: 0.3),
+                            color: report.getStatusColor().withValues(alpha: 0.3),
                             blurRadius: 4,
                             offset: const Offset(0, 2),
                           ),
                         ],
                       ),
                       child: Text(
-                        _getStatusText(report.status),
+                        report.getStatusDisplay().toUpperCase(),
                         style: GoogleFonts.inter(
                           fontSize: 10,
                           fontWeight: FontWeight.w700,
@@ -732,37 +732,4 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
     return 'Selamat Malam';
   }
 
-  Color _getStatusColor(String? status) {
-    switch (status?.toLowerCase()) {
-      case 'menunggu':
-        return const Color(0xFFF59E0B); // Yellow/Amber
-      case 'diajukan':
-        return const Color(0xFFEF4444); // Red-orange for submitted
-      case 'diproses':
-        return const Color(0xFF3B82F6); // Blue for in progress
-      case 'selesai':
-        return const Color(0xFF10B981); // Green for completed
-      case 'ditolak':
-        return const Color(0xFFDC2626); // Dark red for rejected
-      default:
-        return const Color(0xFF6B7280); // Gray for unknown
-    }
-  }
-
-  String _getStatusText(String? status) {
-    switch (status?.toLowerCase()) {
-      case 'menunggu':
-        return 'MENUNGGU';
-      case 'diajukan':
-        return 'DIAJUKAN';
-      case 'diproses':
-        return 'DIPROSES';
-      case 'selesai':
-        return 'SELESAI';
-      case 'ditolak':
-        return 'DITOLAK';
-      default:
-        return 'PENDING';
-    }
-  }
 }
