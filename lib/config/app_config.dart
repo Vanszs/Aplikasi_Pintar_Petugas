@@ -1,7 +1,7 @@
 /// Konfigurasi aplikasi untuk beta testing dan environment settings
 class AppConfig {
   // Beta Testing Configuration
-  static const bool isBetaTesting = true; // Set to false for production
+  static const bool isBetaTesting = false; // Set to false for production
   
   // Beta testing feature flags
   static const bool allowOfficerLogin = true; // Petugas bisa login
