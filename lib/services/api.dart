@@ -399,33 +399,41 @@ class ApiService {
         };
       }
       
+      // Append RW to address if provided
+      String finalAddress = address;
+      if (rwNumber != null && rwNumber.isNotEmpty) {
+        // Only append RW if not already present in address
+        if (!address.toLowerCase().contains('rw')) {
+          finalAddress = '$address, RW $rwNumber';
+        }
+      }
+
+      // Make sure isSirine is always boolean true/false
+      final bool sirineValue = isSirine == true;
+
       // Create request body
       Map<String, dynamic> requestBody = {
         'reporter_name': name,
-        'address': address,
+        'address': finalAddress,
         'phone': phone,
         'jenis_laporan': jenisLaporan,
         'is_officer_report': true,
         'use_account_data': false,
-        'is_sirine': isSirine,
+        'isSirine': sirineValue,
       };
-      
+
       // Tambahkan timestamp Jakarta (UTC+7)
       final timestampData = TimezoneHelper.getTimestampData();
       requestBody.addAll(timestampData);
-      
-      // Tambahkan RW jika ada
-      if (rwNumber != null && rwNumber.isNotEmpty) {
-        requestBody['rw'] = rwNumber;
-      }
-      
+
       // Log request untuk debugging
       developer.log('Petugas report request: ${requestBody.toString()}', name: 'ApiService');
-      developer.log('isSirine in requestBody: ${requestBody['is_sirine']} (type: ${requestBody['is_sirine'].runtimeType})', name: 'ApiService');
-      
+      developer.log('Final address with RW: ${requestBody['address']}', name: 'ApiService');
+      developer.log('isSirine in requestBody: ${requestBody['isSirine']} (type: ${requestBody['isSirine'].runtimeType})', name: 'ApiService');
+
       final body = jsonEncode(requestBody);
       developer.log('Sending petugas report with body: $body', name: 'ApiService');
-      
+
       final response = await http.post(
         Uri.parse('$baseUrl/report'),
         headers: {
@@ -434,10 +442,10 @@ class ApiService {
         },
         body: body,
       ).timeout(const Duration(seconds: 15));
-      
+
       developer.log('Petugas report API response status: ${response.statusCode}', name: 'ApiService');
       developer.log('Petugas report API response body: ${response.body}', name: 'ApiService');
-      
+
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         developer.log('Petugas report sent successfully', name: 'ApiService');
@@ -810,7 +818,16 @@ class ApiService {
           final reportJson = jsonDecode(response.body);
           developer.log('Report JSON: $reportJson', name: 'ApiService');
           developer.log('Report JSON keys: ${reportJson.keys.toList()}', name: 'ApiService');
-          
+
+          // Pastikan field isSirine diambil dari camelCase (utama), fallback ke snake_case jika perlu
+          if (!reportJson.containsKey('isSirine') && reportJson.containsKey('is_sirine')) {
+            reportJson['isSirine'] = reportJson['is_sirine'];
+          }
+          // Paksa boolean (jaga-jaga jika backend kirim 0/1)
+          if (reportJson.containsKey('isSirine')) {
+            reportJson['isSirine'] = reportJson['isSirine'] == true || reportJson['isSirine'] == 1;
+          }
+
           // Debug detail_laporan specifically
           if (reportJson.containsKey('detail_laporan')) {
             developer.log('detail_laporan exists: ${reportJson['detail_laporan']}', name: 'ApiService');
@@ -820,13 +837,24 @@ class ApiService {
           } else {
             developer.log('detail_laporan key does NOT exist', name: 'ApiService');
           }
-          
+
+          // Jika ada field rw, hapus RW lama di address (jika ada), lalu ganti dengan RW dari dropdown
+          if (reportJson.containsKey('rw') && reportJson['rw'] != null && reportJson['rw'].toString().isNotEmpty) {
+            final rwValue = reportJson['rw'].toString();
+            String addressValue = reportJson['address']?.toString() ?? '';
+            // Hapus RW lama (format: ,? ?RW [angka])
+            addressValue = addressValue.replaceAll(RegExp(r',?\s*RW\s*\d+', caseSensitive: false), '');
+            addressValue = addressValue.trim();
+            // Tambahkan RW baru
+            reportJson['address'] = addressValue.isNotEmpty ? '$addressValue, RW $rwValue' : 'RW $rwValue';
+          }
+
           final report = Report.fromJson(reportJson);
-          
+
           developer.log('Report created with status: ${reportJson['status'] ?? 'pending'}', name: 'ApiService');
-          
+
           developer.log('Report detail fetched successfully for ID: $reportId', name: 'ApiService');
-          
+
           // Return report and user details if available
           return {
             'success': true,

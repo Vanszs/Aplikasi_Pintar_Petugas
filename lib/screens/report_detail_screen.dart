@@ -1066,6 +1066,14 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
                   iconColor: const Color(0xFF10B981),
                 ),
                 const SizedBox(height: 16),
+                _buildDetailRow(
+                  icon: report.getSirenStatusIcon(),
+                  label: 'Status Sirine',
+                  value: report.getSirenStatusDisplay(),
+                  iconColor: report.getSirenStatusColor(),
+                  valueColor: report.getSirenStatusColor(),
+                ),
+                const SizedBox(height: 16),
                 Row(
                   children: [
                     Expanded(

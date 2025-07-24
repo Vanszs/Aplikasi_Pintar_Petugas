@@ -10,6 +10,7 @@ class Report {
   final String? phone; // Added phone field
   final String? jenisLaporan; // Added jenis_laporan field
   final String status; // Added status field
+  final bool? sirenActivated; // Added siren activation status
 
   Report({
     required this.id,
@@ -20,6 +21,7 @@ class Report {
     this.phone,
     this.jenisLaporan,
     this.status = 'pending', // Default status
+    this.sirenActivated,
   });
 
   factory Report.fromJson(Map<String, dynamic> json) {
@@ -33,6 +35,9 @@ class Report {
       phone: json['phone']?.toString(), // Parse phone from API
       jenisLaporan: json['jenis_laporan']?.toString(), // Parse jenis_laporan from API
       status: json['status']?.toString() ?? 'pending', // Parse status from API
+      sirenActivated: json['isSirine'] != null ? 
+                     (json['isSirine'] is bool ? json['isSirine'] : 
+                      json['isSirine'].toString().toLowerCase() == 'true') : null,
     );
   }
 
@@ -46,6 +51,7 @@ class Report {
       'phone': phone,
       'jenis_laporan': jenisLaporan,
       'status': status,
+      'isSirine': sirenActivated,
     };
   }
 
@@ -110,5 +116,23 @@ class Report {
       default:
         return const Color(0xFF64748B); // Gray
     }
+  }
+
+  // Get siren status display
+  String getSirenStatusDisplay() {
+    if (sirenActivated == null) return 'Tidak Diketahui';
+    return sirenActivated! ? 'Diaktifkan' : 'Tidak Diaktifkan';
+  }
+
+  // Get siren status color
+  Color getSirenStatusColor() {
+    if (sirenActivated == null) return const Color(0xFF64748B); // Gray
+    return sirenActivated! ? const Color(0xFFEF4444) : const Color(0xFF10B981); // Red for activated, Green for not activated
+  }
+
+  // Get siren status icon
+  IconData getSirenStatusIcon() {
+    if (sirenActivated == null) return Icons.help_outline;
+    return sirenActivated! ? Icons.volume_up_rounded : Icons.volume_off_rounded;
   }
 }
