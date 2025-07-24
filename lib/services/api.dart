@@ -261,6 +261,7 @@ class ApiService {
     bool useAccountData = true,
   }) async {
     try {
+      developer.log('=== CALLING sendReport METHOD (NOT sendPetugasReport) ===', name: 'ApiService');
       developer.log('Petugas sending report', name: 'ApiService');
       
       if (token == null) {
@@ -388,7 +389,8 @@ class ApiService {
     required bool isSirine,
   }) async {
     try {
-      developer.log('Petugas sending report', name: 'ApiService');
+      developer.log('=== CALLING sendPetugasReport METHOD ===', name: 'ApiService');
+      developer.log('Petugas sending report - isSirine value: $isSirine (type: ${isSirine.runtimeType})', name: 'ApiService');
       
       if (token == null) {
         return {
@@ -405,7 +407,7 @@ class ApiService {
         'jenis_laporan': jenisLaporan,
         'is_officer_report': true,
         'use_account_data': false,
-        'is_sirine': isSirine ? 1 : 0,
+        'is_sirine': isSirine,
       };
       
       // Tambahkan timestamp Jakarta (UTC+7)
@@ -419,6 +421,7 @@ class ApiService {
       
       // Log request untuk debugging
       developer.log('Petugas report request: ${requestBody.toString()}', name: 'ApiService');
+      developer.log('isSirine in requestBody: ${requestBody['is_sirine']} (type: ${requestBody['is_sirine'].runtimeType})', name: 'ApiService');
       
       final body = jsonEncode(requestBody);
       developer.log('Sending petugas report with body: $body', name: 'ApiService');

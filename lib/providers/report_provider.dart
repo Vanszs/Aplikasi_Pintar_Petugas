@@ -519,7 +519,7 @@ class ReportNotifier extends StateNotifier<ReportState> {
     required String rwNumber,
     required bool isSirine,
   }) async {
-    developer.log('Sending new officer report: $jenisLaporan', name: 'ReportProvider');
+    developer.log('Sending new officer report: $jenisLaporan, isSirine: $isSirine', name: 'ReportProvider');
     state = state.copyWith(isLoading: true);
     
     try {

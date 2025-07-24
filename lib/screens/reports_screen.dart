@@ -33,6 +33,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
   final TextEditingController _rwController = TextEditingController();
   final TextEditingController _rtController = TextEditingController();
   bool _showFilters = false;
+  String _selectedDateFilter = 'semua'; // 'semua', 'harian', 'mingguan', 'bulanan', 'tahunan'
   final ScrollController _scrollController = ScrollController();
 
   @override
@@ -79,6 +80,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
 
   // Apply filters and sorting with improved regex for RW/RT and jenis laporan filter
   List<Report> _applyFiltersAndSort(List<Report> reports) {
+    final now = DateTime.now();
+
     var filtered = reports.where((report) {
       // RW filter (case insensitive and flexible matching)
       bool rwMatch = true;
@@ -113,8 +116,32 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
         final reportJenisCategory = jenisLaporanNotifier.categorizeJenisLaporan(report.jenisLaporan);
         jenisMatch = reportJenisCategory == _selectedJenisLaporan.toLowerCase();
       }
+      
+      // Date filter
+      bool dateMatch = true;
+      if (_selectedDateFilter != 'semua') {
+        final reportDate = report.createdAt;
+        final today = DateTime(now.year, now.month, now.day);
+        final reportDay = DateTime(reportDate.year, reportDate.month, reportDate.day);
 
-      return rwMatch && rtMatch && statusMatch && jenisMatch;
+        switch (_selectedDateFilter) {
+          case 'harian':
+            dateMatch = reportDay.isAtSameMomentAs(today);
+            break;
+          case 'mingguan':
+            final oneWeekAgo = today.subtract(const Duration(days: 6));
+            dateMatch = !reportDay.isBefore(oneWeekAgo);
+            break;
+          case 'bulanan':
+            dateMatch = reportDate.year == now.year && reportDate.month == now.month;
+            break;
+          case 'tahunan':
+            dateMatch = reportDate.year == now.year;
+            break;
+        }
+      }
+
+      return rwMatch && rtMatch && statusMatch && jenisMatch && dateMatch;
     }).toList();
 
     // Apply sorting
@@ -134,6 +161,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
       _selectedRt = '';
       _selectedStatus = '';
       _selectedJenisLaporan = '';
+      _selectedDateFilter = 'semua';
       _sortBy = 'newest';
       _currentPage = 0;
       
@@ -428,11 +456,12 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     final paginatedReports = _getPaginatedReports(filteredReports);
 
     // Check if any filter is applied (more precise logic)
-    final hasFilters = (_selectedStatus.isNotEmpty && _selectedStatus != 'semua') || 
-                      (_selectedJenisLaporan.isNotEmpty && _selectedJenisLaporan != 'semua') || 
-                      _selectedRw.isNotEmpty || 
-                      _selectedRt.isNotEmpty ||
-                      _sortBy != 'newest';
+    final hasFilters = (_selectedStatus.isNotEmpty && _selectedStatus != 'semua') ||
+        (_selectedJenisLaporan.isNotEmpty && _selectedJenisLaporan != 'semua') ||
+        _selectedRw.isNotEmpty ||
+        _selectedRt.isNotEmpty ||
+        _selectedDateFilter != 'semua' ||
+        _sortBy != 'newest';
 
     return Column(
       children: [
@@ -551,11 +580,12 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
   }
 
   String _getFilterStatusText() {
-    bool hasFilters = _selectedRw.isNotEmpty || 
-                     _selectedRt.isNotEmpty || 
-                     (_selectedStatus.isNotEmpty && _selectedStatus != 'semua') || 
-                     (_selectedJenisLaporan.isNotEmpty && _selectedJenisLaporan != 'semua');
-    
+    bool hasFilters = _selectedRw.isNotEmpty ||
+        _selectedRt.isNotEmpty ||
+        (_selectedStatus.isNotEmpty && _selectedStatus != 'semua') ||
+        (_selectedJenisLaporan.isNotEmpty && _selectedJenisLaporan != 'semua') ||
+        _selectedDateFilter != 'semua';
+
     return hasFilters ? 'Terfilter' : 'Semua';
   }
 
@@ -801,6 +831,9 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
             ],
           ),
           const SizedBox(height: 12),
+          // Date Filter
+          _buildDateFilter(),
+          const SizedBox(height: 12),
           // Status and Sort filters
           Row(
             children: [
@@ -986,6 +1019,52 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     
     return items;
   }
+  
+    // Build date filter widget
+    Widget _buildDateFilter() {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Filter Waktu',
+            style: GoogleFonts.inter(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: const Color(0xFF374151),
+            ),
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            child: SegmentedButton<String>(
+              segments: const <ButtonSegment<String>>[
+                ButtonSegment(value: 'semua', label: Text('Semua')),
+                ButtonSegment(value: 'harian', label: Text('Harian')),
+                ButtonSegment(value: 'mingguan', label: Text('Mingguan')),
+                ButtonSegment(value: 'bulanan', label: Text('Bulanan')),
+                ButtonSegment(value: 'tahunan', label: Text('Tahunan')),
+              ],
+              selected: {_selectedDateFilter},
+              onSelectionChanged: (Set<String> newSelection) {
+                setState(() {
+                  _selectedDateFilter = newSelection.first;
+                  _currentPage = 0;
+                  _scrollToTop();
+                });
+              },
+              style: SegmentedButton.styleFrom(
+                backgroundColor: const Color(0xFFF9FAFB),
+                foregroundColor: const Color(0xFF374151),
+                selectedForegroundColor: Colors.white,
+                selectedBackgroundColor: const Color(0xFF6366F1),
+                side: const BorderSide(color: Color(0xFFE5E7EB)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
 
   // Build dropdown items for RT filter (10 RT total)
   List<DropdownMenuItem<String>> _buildRtDropdownItems() {

@@ -101,6 +101,7 @@ class _OfficerReportFormScreenState extends ConsumerState<OfficerReportFormScree
         return;
       }
       // Try send report
+      print('DEBUG: _isSirine value before sending: $_isSirine');
       final success = await ref.read(reportProvider.notifier).sendPetugasReport(
         name: userName,
         address: _addressController.text,
@@ -1195,7 +1196,9 @@ class _OfficerReportFormScreenState extends ConsumerState<OfficerReportFormScree
                 return const Color(0xFF6366F1);
               }),
               onChanged: (val) {
+                print('DEBUG: Switch toggled to: $val');
                 setState(() => _isSirine = val);
+                print('DEBUG: _isSirine after setState: $_isSirine');
                 HapticFeedback.lightImpact();
               },
             ),
