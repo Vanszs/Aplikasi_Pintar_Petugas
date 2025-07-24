@@ -1037,12 +1037,42 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
           SizedBox(
             width: double.infinity,
             child: SegmentedButton<String>(
-              segments: const <ButtonSegment<String>>[
-                ButtonSegment(value: 'semua', label: Text('Semua')),
-                ButtonSegment(value: 'harian', label: Text('Harian')),
-                ButtonSegment(value: 'mingguan', label: Text('Mingguan')),
-                ButtonSegment(value: 'bulanan', label: Text('Bulanan')),
-                ButtonSegment(value: 'tahunan', label: Text('Tahunan')),
+              segments: <ButtonSegment<String>>[
+                ButtonSegment(
+                  value: 'semua', 
+                  label: Text(
+                    'Semua',
+                    style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w500),
+                  ),
+                ),
+                ButtonSegment(
+                  value: 'harian', 
+                  label: Text(
+                    'Harian',
+                    style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w500),
+                  ),
+                ),
+                ButtonSegment(
+                  value: 'mingguan', 
+                  label: Text(
+                    'Mingguan',
+                    style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w500),
+                  ),
+                ),
+                ButtonSegment(
+                  value: 'bulanan', 
+                  label: Text(
+                    'Bulanan',
+                    style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w500),
+                  ),
+                ),
+                ButtonSegment(
+                  value: 'tahunan', 
+                  label: Text(
+                    'Tahunan',
+                    style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w500),
+                  ),
+                ),
               ],
               selected: {_selectedDateFilter},
               onSelectionChanged: (Set<String> newSelection) {
@@ -1058,7 +1088,12 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                 selectedForegroundColor: Colors.white,
                 selectedBackgroundColor: const Color(0xFF6366F1),
                 side: const BorderSide(color: Color(0xFFE5E7EB)),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                minimumSize: const Size(0, 36),
+                maximumSize: const Size(double.infinity, 36),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                visualDensity: VisualDensity.compact,
               ),
             ),
           ),
