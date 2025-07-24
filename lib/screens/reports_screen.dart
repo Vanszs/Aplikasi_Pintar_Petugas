@@ -1095,6 +1095,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 visualDensity: VisualDensity.compact,
               ),
+              showSelectedIcon: false,
             ),
           ),
         ],
